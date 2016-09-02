@@ -130,12 +130,12 @@ if GEOMETRY=="spherical":
 	mx=np.mean(cx)
 	my=np.mean(cy)
 	mz=np.mean(cz)
-	print "The center will be shifted to the origin for easier viz in ParaView."
+	#print "The center will be shifted to the origin for easier viz in ParaView."
 	print "The center coordinates are: ",mx,my,mz
 	
-	cx=cx-mx
-	cy=cy-my
-	cz=cz-mz
+	#cx=cx-mx
+	#cy=cy-my
+	#cz=cz-mz
 	# del xxx,yyy,zzz
 	
 	gridToVTK("SquashingFactor_SphCoo", cx.copy(), cy.copy(), cz.copy(), pointData = {"log10(Q)" : (log10q.copy())})
@@ -162,9 +162,9 @@ if GEOMETRY=="spherical":
 	r=np.repeat(np.repeat([[rads]],ny,axis=1),nx,axis=0)*solar_radius
 	phi=np.repeat(np.repeat([[lons]],ny,axis=1),nz,axis=0).transpose((2,1,0))*np.pi/180.
 	theta=np.pi/2.0-np.repeat(np.repeat([[lats]],nx,axis=1),nz,axis=0).transpose((1,2,0))*np.pi/180. # Griffiths' def
-	cx=(r)*np.cos(phi)*np.sin(theta) - mx
-	cy=(r)*np.sin(phi)*np.sin(theta) - my
-	cz=(r)*np.cos(theta)             - mz
+	cx=(r)*np.cos(phi)*np.sin(theta) #- mx
+	cy=(r)*np.sin(phi)*np.sin(theta) #- my
+	cz=(r)*np.cos(theta)             #- mz
 	
 	bx=b_r*np.sin(theta)*np.cos(phi) + b_theta*np.cos(theta)*np.cos(phi) + b_phi *(-np.sin(phi))
 	by=b_r*np.sin(theta)*np.sin(phi) + b_theta*np.cos(theta)*np.sin(phi) + b_phi *(np.cos(phi))
