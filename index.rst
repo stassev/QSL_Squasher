@@ -43,8 +43,8 @@ Welcome to QSL Squasher's documentation!
 
 
 
-.. [QSL3d] `QSL Squasher: Calculating Quasi-Separatrix Layer Maps on a 
-   GPU`, S. Tassev, A. Savcheva (2016), `arXiv:????? 
-   <http://arxiv.org/abs/arXiv:?????>`_
+.. [QSL3d] ` QSL Squasher: A Fast Quasi-Separatrix Layer Map Calculator`, 
+   S. Tassev and A. Savcheva (2016), `arXiv:1609.00724
+   <https://arxiv.org/abs/1609.00724>`_
 
 
