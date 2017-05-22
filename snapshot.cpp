@@ -80,7 +80,7 @@ struct out_struct {
   float qsl;
 } ;
 
-bool comparison (qsl_struct & i,qsl_struct& j) { return (i.x<j.x); }
+bool comparison (const qsl_struct & i,const qsl_struct& j) { return (i.x<j.x); }
 
 typedef std::vector< qsl_struct > qsl_type;
 typedef std::vector< out_struct > out_type;
