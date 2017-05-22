@@ -29,9 +29,9 @@
 #include <vexcl/devlist.hpp>
 #include <boost/numeric/odeint.hpp>
 //[ vexcl_includes
-#include <boost/numeric/odeint/external/vexcl/vexcl.hpp>
+//#include <boost/numeric/odeint/external/vexcl/vexcl.hpp>
 //]
-#include <boost/numeric/odeint/external/vexcl/vexcl_resize.hpp>
+//#include <boost/numeric/odeint/external/vexcl/vexcl_resize.hpp>
 //#include <boost/numeric/ublas/matrix.hpp>
 //#include <boost/numeric/ublas/io.hpp>
 //#include <boost/numeric/ublas/lu.hpp>
@@ -69,7 +69,7 @@ struct qsl_struct {
   float length;
 } ;
 
-bool comparison (qsl_struct & i,qsl_struct& j) { return (i.x<j.x); }
+bool comparison (const qsl_struct & i,const qsl_struct& j) { return (i.x<j.x); }
 
 typedef std::vector< qsl_struct > qsl_type;
 
