@@ -150,6 +150,8 @@ std::string in_filename="";
 //If jump is in the log10(length), then a good guess here is 0.05
 #define LENGTH_JUMP_REFINEMENT_THRESHOLD 1.0 //Mm
 
+#define MAX_REFINEMENTS 6
+
 #if INTEGRATION_SCHEME==EULER
 	const size_t CHUNKSIZE = pow(2,19);
 #else
