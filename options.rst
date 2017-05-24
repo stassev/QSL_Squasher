@@ -204,7 +204,12 @@ of relevant options that need to be set:
    threshold is exceeded, then the code makes a refinement by sampling 
    the point lying half-way on the Hilbert curve between those two 
    points.
+   
+.. c:macro:: MAX_REFINEMENTS
 
+   Specifies the maximum number of refinements the code will make before
+   exiting.
+   
 .. c:macro:: INTEGRATION_SCHEME
 
    Specifies the integration scheme. One can set this to ``EULER`` 
