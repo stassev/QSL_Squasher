@@ -298,7 +298,7 @@ int main( int argc , char **argv )
     batch_num=-1;
     double xx,yy,zz;
     
-    while ((BATCHSIZE>0) &&(batch_num<=MAX_REFINEMENTS)){
+    while ((BATCHSIZE>0) &&(batch_num<MAX_REFINEMENTS)){
         batch_num++;
         cerr << "Number of field lines to be integrated in this mesh refinement step: " << BATCHSIZE << "\n";
         for (size_t i=0;i<2;i++)
