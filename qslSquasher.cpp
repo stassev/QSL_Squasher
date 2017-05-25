@@ -59,7 +59,7 @@ typedef vex::multivector< ushort, 3 > u_type;
 #include <algorithm>    // std::sort
 
 
-size_t batch_num;
+int batch_num;
 struct qsl_struct {
   uint64_t x;
   bool finishedQ;
