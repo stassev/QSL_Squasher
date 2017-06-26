@@ -1,6 +1,6 @@
 #
 #	This file is part of QSL Squasher. 
-#	Copyright (C) 2014, 2015, 2016  Svetlin Tassev
+#	Copyright (C) 2014-2017  Svetlin Tassev
 #							 Harvard-Smithsonian Center for Astrophysics
 #							 Braintree High School
 #	

@@ -1,6 +1,6 @@
 /*
 	This file is part of QSL Squasher. 
-	Copyright (C) 2014, 2015, 2016  Svetlin Tassev
+	Copyright (C) 2014-2017  Svetlin Tassev
 							 Harvard-Smithsonian Center for Astrophysics
 							 Braintree High School
 	
@@ -48,6 +48,11 @@ std::string in_filename="";
 //#define GEOMETRY SPHERICAL
 //**********************************
 
+#if (GEOMETRY==SPHERICAL)
+    //#define GLOBAL_MODEL
+#endif
+
+
 
 #if GEOMETRY==CARTESIAN
 	#define SLICE_TYPE CARTESIAN // Don't change!
@@ -87,7 +92,7 @@ std::string in_filename="";
 //**********************************************************************
 // Do you want a 2d slice (QSL_DIM=2) of Q values, or do you prefer to 
 // calculate the Q values in 3d (QSL_DIM=3)?
-//#define QSL_DIM 3
+//#define QSL_DIM 2
 #define QSL_DIM 3
 //**********************************************************************
 // Initial grid size for Q before refining along Hilbert curve.
@@ -145,6 +150,11 @@ std::string in_filename="";
 #define INTERPOLATION_TYPE TRILINEAR
 //#define INTERPOLATION_TYPE TRIQUADRATIC
 //#define INTERPOLATION_TYPE TRICUBIC
+
+#ifdef GLOBAL_MODEL // global model is supported only with trilinear interpolation at this time
+	#undef INTERPOLATION_TYPE
+	#define INTERPOLATION_TYPE TRILINEAR
+#endif
 //**********************************************************************
 
 //If jump is in the log10(length), then a good guess here is 0.05

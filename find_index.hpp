@@ -1,6 +1,6 @@
 /*
 	This file is part of QSL Squasher. 
-	Copyright (C) 2014, 2015, 2016  Svetlin Tassev
+	Copyright (C) 2014-2017  Svetlin Tassev
 							 Harvard-Smithsonian Center for Astrophysics
 							 Braintree High School
 	
@@ -36,28 +36,37 @@ VEX_FUNCTION(cl_ushort4, find_index, (double, x)(double, y)(double,z)(cl_double4
 	
 	// Check for out-of-range values
     ushort a=1;
+    
+    #ifndef GLOBAL_MODEL
     if (x<xmin) {
         x=xmin+1.e-6;
-        a=0;
+			a=0;
     }
+    if (x>=xmax)  {
+         x=xmax-1.e-6;
+		 a=0;
+    }
+    #else
+		x=fmod((x+M_PI*2.0000001),(2.*M_PI));
+    #endif
+
+
     if (y<ymin) {
         y=ymin+1.e-6; 
-        a=0;
+		#ifndef GLOBAL_MODEL
+			a=0;
+		#endif
     }
     if (z<z_minimum) {
         z=z_minimum+1.e-6;
         a=0;
     }
     
-    if (x>=xmax)  {
-         x=xmax-1.e-6;
-         a=0;
-    }
-
-
     if (y>=ymax) {
          y=ymax-1.e-6;
-         a=0;
+		 #ifndef GLOBAL_MODEL
+		 	a=0;
+		 #endif
     }
 
     if (z>=zmax)  {
@@ -92,13 +101,21 @@ VEX_FUNCTION(cl_ushort4, find_index, (double, x)(double, y)(double,z)(cl_double4
     if (k>nz-2) k=nz-2;
    
     //Starting with the guess above, find the exact index location
-    while (ff[i].s0<x)i++;
+    #ifdef GLOBAL_MODEL
+		while ((i<=nx-1) && (ff[i].s0<x))i++;
+    #else
+		while (ff[i].s0<x)i++;
+    #endif
     while (ff[j].s1<y)j++;
     while (ff[k].s2<z)k++;
     
     while (ff[i].s0>x)i--;
     while (ff[j].s1>y)j--;
     while (ff[k].s2>z)k--;
+    
+    #ifdef GLOBAL_MODEL
+		if (x>=ff[nx-1].s0) i=nx-1;
+    #endif
     
     ushort4 ind={i,j,k,a};
     return ind;

@@ -1,7 +1,7 @@
 .. ########################################################################
 .. ########################################################################
 .. #   This file is part of QSL Squasher. 
-.. #   Copyright (C) 2014, 2015, 2016  Svetlin Tassev
+.. #   Copyright (C) 2014-2017  Svetlin Tassev
 .. #   						 Harvard-Smithsonian Center for Astrophysics
 .. #   						 Braintree High School
 .. #   
@@ -49,7 +49,17 @@ after each modification to the options below.
 .. c:macro:: GEOMETRY
 
    Pick one type of geometry for your input box. Possible values are: 
-   ``SPHERICAL`` (default) or ``CARTESIAN``. 
+   ``SPHERICAL`` (default) or ``CARTESIAN``. When using spherical geometry,
+   the poles, as well as the periodicity in longitude, are treated correctly.
+
+.. c:macro:: GLOBAL_MODEL
+
+   If defined (only for ``SPHERICAL`` geometry), the code assumes that 
+   the input magnetic field covers the whole sun. Longitude samples should 
+   start at >=0 degrees, and end at <360 degrees. Latitude samples should 
+   start >-90 degrees, and end at <90 degrees. The code currently supports 
+   only trilinear interpolation when this options is set. The poles, as well
+   as the periodicity in longitude, are treated correctly.
 
 .. c:macro:: SOLAR_RADIUS
 

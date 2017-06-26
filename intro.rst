@@ -1,7 +1,7 @@
 .. ########################################################################
 .. ########################################################################
 .. #   This file is part of QSL Squasher. 
-.. #   Copyright (C) 2014, 2015, 2016  Svetlin Tassev
+.. #   Copyright (C) 2014-2017  Svetlin Tassev
 .. #   						 Harvard-Smithsonian Center for Astrophysics
 .. #   						 Braintree High School
 .. #   
@@ -181,7 +181,8 @@ means that you need to recompile the code for each new box.
 The code assumes that the magnetic field components are sampled on a 
 rectilinear grid in either spherical or cartesian coordinates. The grid 
 point coordinates are specified by the files :file:`xs*.dat`, 
-:file:`ys*.dat`, :file:`zs*.dat`. 
+:file:`ys*.dat`, :file:`zs*.dat`. Those samples should be in increasing
+order.
 
 Depending on whether :c:macro:`GEOMETRY <GEOMETRY>` is set to 
 ``CARTESIAN`` or ``SPHERICAL``, the magnetic field and the 

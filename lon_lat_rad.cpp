@@ -1,6 +1,6 @@
 /*
 	This file is part of QSL Squasher. 
-	Copyright (C) 2014, 2015, 2016  Svetlin Tassev
+	Copyright (C) 2014-2017  Svetlin Tassev
 							 Harvard-Smithsonian Center for Astrophysics
 							 Braintree High School
 	
@@ -83,7 +83,7 @@ void hilbert_to_coo(qsl_type &qsl,double *lon,double *lat,double *rad,size_t i){
 					
 					double ux,uy,uz,rx,ry,rz;
 					double phi  = SLICE_CENTER[0];
-					double theta= 3.1415926/2.0 - SLICE_CENTER[1];
+					double theta= M_PI_2 - SLICE_CENTER[1];
 					double r=SLICE_CENTER[2];
 					
 					ux=sin(theta)*cos(phi)*ur +

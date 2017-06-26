@@ -1,6 +1,6 @@
 /*
 	This file is part of QSL Squasher. 
-	Copyright (C) 2014, 2015, 2016  Svetlin Tassev
+	Copyright (C) 2014-2017  Svetlin Tassev
 							 Harvard-Smithsonian Center for Astrophysics
 							 Braintree High School
 	
@@ -23,9 +23,15 @@ VEX_FUNCTION(cl_double4, interp_trilinear, (double, x)(double, y)(double,z)(cl_d
     double a=1.0;
     if (ind.s3 == 0) a=1e-9;
 
-
-    if (x<ff[0].s0) 
-        x=ff[0].s0+1.e-6;
+	#ifndef GLOBAL_MODEL
+		if (x<ff[0].s0) 
+			x=ff[0].s0+1.e-6;
+		
+		if (x>=ff[nx-1].s0)  
+			x=ff[nx-1].s0-1.e-6; 
+    #else
+		x=fmod((x+M_PI*2.0000001),(2.*M_PI));
+    #endif
 
     if (y<ff[0].s1) 
         y=ff[0].s1+1.e-6; 
@@ -33,8 +39,7 @@ VEX_FUNCTION(cl_double4, interp_trilinear, (double, x)(double, y)(double,z)(cl_d
     if (z<z_minimum) 
         z=z_minimum+1.e-6; 
     
-    if (x>=ff[nx-1].s0)  
-        x=ff[nx-1].s0-1.e-6; 
+
 
     if (y>=ff[ny-1].s1) 
         y=ff[ny-1].s1-1.e-6; 
@@ -51,7 +56,14 @@ VEX_FUNCTION(cl_double4, interp_trilinear, (double, x)(double, y)(double,z)(cl_d
     double fy=ff[j].s1;
     double fz=ff[k].s2;
     
-    double xP = (x-fx)/(ff[i+1].s0-fx);
+    double xP;
+    
+    #ifdef GLOBAL_MODEL
+    if (i==nx-1)
+		xP = (x-fx)/(2.*M_PI+ff[0].s0-fx);
+	else
+	#endif
+		xP = (x-fx)/(ff[i+1].s0-fx);
     double yP = (y-fy)/(ff[j+1].s1-fy);
     double zP = (z-fz)/(ff[k+1].s2-fz);
     
@@ -59,7 +71,15 @@ VEX_FUNCTION(cl_double4, interp_trilinear, (double, x)(double, y)(double,z)(cl_d
     double y0 = 1.0 - yP;
     double z0 = 1.0 - zP;
     
-    size_t ip1=i+1;
+    size_t ip1;
+    #ifdef GLOBAL_MODEL
+    if (i==nx-1)
+		ip1=0;
+	else
+	#endif
+		ip1=i+1;
+    
+    
     
     size_t j0 =nx*j;
     size_t jp1=nx*(j+1);
@@ -107,12 +127,22 @@ VEX_FUNCTION(cl_double4, interp_trilinear_diff, (double, x)(double, y)(double,z)
     double fx=ff[i].s0;
     double fy=ff[j].s1;
     double fz=ff[k].s2;
-    
+
+	#ifdef GLOBAL_MODEL
+		x=fmod((x+M_PI*2.0000001),(2.*M_PI));
+    #endif    
+
     double xP = (x-fx);
     double yP = (y-fy);
     double zP = (z-fz);
     
-    fx-=ff[i+1].s0;
+    #ifdef GLOBAL_MODEL
+    if (i==nx-1)
+		fx-=2.*M_PI+ff[0].s0;
+	else
+	#endif
+		fx-=ff[i+1].s0;
+    
     fy-=ff[j+1].s1;
     fz-=ff[k+1].s2;
     
@@ -132,7 +162,13 @@ VEX_FUNCTION(cl_double4, interp_trilinear_diff, (double, x)(double, y)(double,z)
     double dy0 = -dyP;
     double dz0 = -dzP;
 
-    size_t ip1=i+1;
+    size_t ip1;
+    #ifdef GLOBAL_MODEL
+    if (i==nx-1)
+		ip1=0;
+	else
+	#endif
+		ip1=i+1;
     
     size_t j0 =nx*j;
     size_t jp1=nx*(j+1);

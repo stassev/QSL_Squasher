@@ -1,6 +1,6 @@
 /*
 	This file is part of QSL Squasher. 
-	Copyright (C) 2014, 2015, 2016  Svetlin Tassev
+	Copyright (C) 2014-2017  Svetlin Tassev
 							 Harvard-Smithsonian Center for Astrophysics
 							 Braintree High School
 	
@@ -181,6 +181,11 @@ struct sys_func
         VEX_CONSTANT(ccc, (double) SOLAR_RADIUS); // scale by solar radius, to make the units in the x,y,z the same. This is important for sanely dealing with the error tol's.
         x(0)/=ccc();//undo scale done in main()
         x(1)/=ccc();
+        //fix periodicities
+        vex::tie(x(0),x(1))=std::make_tuple(
+					fmod(x(0)-xmin_file+(floor(fabs(x(1))*M_2_PI)+2.)*M_PI,2.*M_PI)+xmin_file,
+					M_PI_2-fabs(fabs(x(1)+M_PI_2)-M_PI)
+				);
         vector_type x2c=1.0/(x(2)*cos(x(1)));
 #endif
         ind2_type ind = find_index(x(0),x(1),x(2),vex::raw_pointer(ff),vex::raw_pointer(ff_lookup));
@@ -227,13 +232,6 @@ struct sys_func
 
 
 
-#if QSL_DIM==3
-    const size_t init_size=nx_init*ny_init*nz_init;
-#endif
-#if QSL_DIM==2
-    const size_t init_size=nx_init*ny_init;
-#endif
-
 #define u1 X(0+3*1)
 #define u2 X(1+3*1)
 #define u3 X(2+3*1)
@@ -275,14 +273,9 @@ int main( int argc , char **argv )
 	if (step1<step)step=step1;
     cerr<<"Integration step set at "<< step << " Mm\n";
     
-#if QSL_DIM==3
-    size_t BATCHSIZE=nx_init*ny_init*nz_init;
-    size_t qsl_num=nx_init*ny_init*nz_init;
-#endif
-#if QSL_DIM==2
-    size_t BATCHSIZE=nx_init*ny_init;
-    size_t qsl_num=nx_init*ny_init;
-#endif
+    size_t BATCHSIZE=init_size;
+    size_t qsl_num=init_size;
+
     vector< vector< vector< double >> > R;
     R.resize( 2,vector< vector< double >>(NUM_ODE , vector<double>( BATCHSIZE , 0.0 ) ));
     
@@ -314,8 +307,13 @@ int main( int argc , char **argv )
                 
                 hilbert_to_coo(qsl,&xx,&yy,&zz,i);
                 
+                #ifndef GLOBAL_MODEL
                 if ((xx<=xmax_file) && (xx>=xmin_file) &&
                     (yy<=ymax_file) && (yy>=ymin_file) &&
+                #else 
+                if ((xx>=0) && (xx<2.*M_PI) &&
+                    (yy<M_PI/2.) && (yy>-M_PI/2.) &&
+                #endif
                     (zz<=zmax_file) && (zz>=zmin_file)) {
 					R[0][0][k]=xx; 
 					R[0][1][k]=yy; 
@@ -766,6 +764,7 @@ void reading( vex::Context &ctx,
     xmax_file=Hx[nx-1];
 	xmin_file=Hx[0];
 #if QSL_DIM==3
+	#ifndef GLOBAL_MODEL
     if (xmin_file/to_radians>XMIN) {
 		std::cerr<<    "***XMIN OFF: "<<xmin_file/to_radians<<" "    <<XMIN<<'\n';
 		exit(0);
@@ -774,6 +773,21 @@ void reading( vex::Context &ctx,
 		std::cerr<<"***XMAX OFF: "<<xmax_file/to_radians<<" "<<XMAX<<'\n';
 		exit(0);
 	}
+	#else
+	if (xmin_file/to_radians<0) {
+		std::cerr<<    "***XMIN OFF: "<<xmin_file/to_radians<<" "    <<XMIN<<'\n';
+		exit(0);
+	}
+    if (xmax_file/to_radians>360) {
+		std::cerr<<"***XMAX OFF: "<<xmax_file/to_radians<<" "<<360<<'\n';
+		exit(0);
+	}
+	#endif
+	
+	
+	
+	
+	
 #endif
     fclose(filefx);
     vex::copy( Hx,bbf(0));
@@ -800,6 +814,7 @@ void reading( vex::Context &ctx,
     ymax_file=Hy[ny-1];
 	ymin_file=Hy[0];
 #if QSL_DIM==3
+	#ifndef GLOBAL_MODEL
     if (ymin_file/to_radians>YMIN) {
 		std::cerr<<"***YMIN OFF: "<<ymin_file/to_radians<<" "<<YMIN<<'\n';
 		exit(0);
@@ -808,6 +823,16 @@ void reading( vex::Context &ctx,
 		std::cerr<<"***YMAX OFF: "<<ymax_file/to_radians<<" "<<YMAX<<'\n';
 		exit(0);
 	}
+	#else
+	if (ymin_file/to_radians<-90) {
+		std::cerr<<"***YMIN OFF: "<<ymin_file/to_radians<<" "<<-90<<'\n';
+		exit(0);
+	}
+    if (ymax_file/to_radians>90) {
+		std::cerr<<"***YMAX OFF: "<<ymax_file/to_radians<<" "<<90<<'\n';
+		exit(0);
+	}
+	#endif
 #endif
     fclose(filefy);
     vex::copy( Hy,bbf(1));
@@ -1010,7 +1035,12 @@ void integrate_streamlines(std::vector< std::vector< std::vector< double >> > &R
                 }
 		#if INTEGRATION_SCHEME==ADAPTIVE
 			#if GEOMETRY==SPHERICAL
-			VEX_CONSTANT(ccc,  (double)SOLAR_RADIUS);
+                    //fix periodicities
+					vex::tie(X(0),X(1))=std::make_tuple(
+							fmod(X(0)-xmin_file+(floor(fabs(X(1))*M_2_PI)+2.)*M_PI,2.*M_PI)+xmin_file,
+							M_PI_2-fabs(fabs(X(1)+M_PI_2)-M_PI)
+							);
+					VEX_CONSTANT(ccc,  (double)SOLAR_RADIUS);
 		            X(0)*=ccc();
 		            X(1)*=ccc(); 
  			#endif
@@ -1036,6 +1066,16 @@ void integrate_streamlines(std::vector< std::vector< std::vector< double >> > &R
 						exit(0);
 					}
 					for (size_t y=0; y<steps;y++){
+						#if (GEOMETRY==SPHERICAL)
+							//fix periodicities
+							  vex::tie(X(0),X(1))=std::make_tuple(
+									fmod(X(0)-xmin_file+(floor(fabs(X(1))*M_2_PI)+2.)*M_PI,2.*M_PI)+xmin_file,
+									M_PI_2-fabs(fabs(X(1)+M_PI_2)-M_PI)
+									);
+						#endif
+						
+						
+						
 						ind2_type ind = find_index(X(0),X(1),X(2),vex::raw_pointer(ff),vex::raw_pointer(ff_lookup));
                         vector2_type d =  INTERP( X(0),X(1),X(2), vex::raw_pointer(B), vex::raw_pointer(ff),ind);
 		                #if (GEOMETRY==SPHERICAL)
@@ -1084,6 +1124,15 @@ void integrate_streamlines(std::vector< std::vector< std::vector< double >> > &R
 				///////////////////////////////////////////
 				/////////////////////////////////
 		#endif
+				#if (GEOMETRY==SPHERICAL)
+					//fix periodicities
+					vex::tie(X(0),X(1))=std::make_tuple(
+									fmod(X(0)-xmin_file+(floor(fabs(X(1))*M_2_PI)+2.)*M_PI,2.*M_PI)+xmin_file,
+									M_PI_2-fabs(fabs(X(1)+M_PI_2)-M_PI)
+									);
+				#endif
+		
+		
 				ind2_type ind(ctx.queue() , n);
                 ind=find_index(X(0),X(1),X(2),vex::raw_pointer(ff),vex::raw_pointer(ff_lookup));
                 cQ =   extract3u(ind);
@@ -1169,11 +1218,11 @@ void add_samples_along_hilbert(qsl_type &qsl,size_t *qsl_num_pt){
             if (k1!=qsl_num){
 				qC=qsl[k].length;
 				qP=qsl[k1].length;
-				
-                refine = (qsl[k].qsl>2.) && (qsl[k1].qsl>2.);//if labelling open field lines, those are marked with q=0, so skip refining at the boundaries of those regions
+				refine =1;
+				#if CALCULATE==QSL
+					refine = (qsl[k].qsl>2.) && (qsl[k1].qsl>2.);//if labelling open field lines, those are marked with q=0, so skip refining at the boundaries of those regions
+                #endif
                 refine = refine && (fabs(qC-qP) > LENGTH_JUMP_REFINEMENT_THRESHOLD);
-                // Consider changing (qC-qP) to (log10(qC)-log10(qP)                )
-                // It converges orders of magn. more rapidly but CAN MISS refining regions.
                 if (refine) {
                     x  = qsl[k].x;
                     x1 = qsl[k1].x;

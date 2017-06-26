@@ -1,6 +1,6 @@
 /*
 	This file is part of QSL Squasher. 
-	Copyright (C) 2014, 2015, 2016  Svetlin Tassev
+	Copyright (C) 2014-2017  Svetlin Tassev
 							 Harvard-Smithsonian Center for Astrophysics
 							 Braintree High School
 	
@@ -96,3 +96,11 @@ bool SAMPLER_INITIALIZED=false;
     #define NUM_ODE 4
 #endif
 
+
+
+#if QSL_DIM==3
+    const size_t init_size=nx_init*ny_init*nz_init;
+#endif
+#if QSL_DIM==2
+    const size_t init_size=nx_init*ny_init;
+#endif
