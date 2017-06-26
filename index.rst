@@ -28,7 +28,7 @@ Welcome to QSL Squasher's documentation!
 
 :Author: Svetlin Tassev
 :Version: |release|
-:Date: April 22, 2016
+:Date: June 26, 2017
 :Homepage: `QSL Squasher Homepage`_
 :Documentation: `PDF Documentation <https://bitbucket.org/tassev/qsl_squasher/downloads/qsl_Squasher.pdf>`_
 :License: `GPLv3+ License`_
