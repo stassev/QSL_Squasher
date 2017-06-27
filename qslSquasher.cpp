@@ -19,7 +19,7 @@
     
 */
 
-#define FUSION_MAX_VECTOR_SIZE 12
+//#define FUSION_MAX_VECTOR_SIZE 12
 
 
 #include <iostream>
@@ -29,7 +29,9 @@
 #include <vexcl/devlist.hpp>
 #include <boost/numeric/odeint.hpp>
 //[ vexcl_includes
-//#include <boost/numeric/odeint/external/vexcl/vexcl.hpp>
+#if (INTEGRATION_SCHEME==ADAPTIVE)
+	#include <boost/numeric/odeint/external/vexcl/vexcl.hpp>
+#endif
 //]
 //#include <boost/numeric/odeint/external/vexcl/vexcl_resize.hpp>
 //#include <boost/numeric/ublas/matrix.hpp>
@@ -355,7 +357,8 @@ int main( int argc , char **argv )
         #else
             q_calculation(R,ctx,B,Borig,ff,qsl,ff_lookup);
             cerr<<"Q values calculated successfully." << "\n";
-        
+		
+			if (batch_num==MAX_REFINEMENTS) return 0;
         
         
 			BATCHSIZE = 0;
