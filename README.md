@@ -6,7 +6,7 @@ QSL Squasher is an OpenCL code for calculating squashing factors of vector field
 
 QSL Squasher is based on the following paper:
 
-* QSL Squasher: A Fast Quasi-Separatrix Layer Map Calculator, S. Tassev and A. Savcheva, [arXiv:1609.00724](https://arxiv.org/abs/1609.00724)
+* QSL Squasher: A Fast Quasi-Separatrix Layer Map Calculator, S. Tassev and A. Savcheva, [arXiv:1609.00724](https://arxiv.org/abs/1609.00724), The Astrophysical Journal, 840, 89 (2017).
 
 If you use QSL Squasher or a derivative of it for scientific work, we 
 kindly ask you to reference the paper above.
