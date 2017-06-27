@@ -291,6 +291,13 @@ int main( int argc , char **argv )
     batch_num=-1;
     double xx,yy,zz;
     
+    #ifdef GLOBAL_MODEL
+		xmin_file=0.0;
+		xmax_file=2.*M_PI;
+		ymin_file=-M_PI_2;
+		ymax_file=M_PI_2;
+    #endif
+    
     while ((BATCHSIZE>0) &&(batch_num<MAX_REFINEMENTS)){
         batch_num++;
         cerr << "Number of field lines to be integrated in this mesh refinement step: " << BATCHSIZE << "\n";
@@ -307,13 +314,8 @@ int main( int argc , char **argv )
                 
                 hilbert_to_coo(qsl,&xx,&yy,&zz,i);
                 
-                #ifndef GLOBAL_MODEL
                 if ((xx<=xmax_file) && (xx>=xmin_file) &&
                     (yy<=ymax_file) && (yy>=ymin_file) &&
-                #else 
-                if ((xx>=0) && (xx<2.*M_PI) &&
-                    (yy<M_PI/2.) && (yy>-M_PI/2.) &&
-                #endif
                     (zz<=zmax_file) && (zz>=zmin_file)) {
 					R[0][0][k]=xx; 
 					R[0][1][k]=yy; 
@@ -340,9 +342,6 @@ int main( int argc , char **argv )
         for (size_t i=0;i<2;i++)
             for (size_t j=0;j<NUM_ODE;j++)
                 R[i][j].resize(BATCHSIZE);
-        
-        
-        
         
         
         initialize( R,ctx, B,Borig,ff,qsl,ff_lookup);
@@ -775,7 +774,7 @@ void reading( vex::Context &ctx,
 	}
 	#else
 	if (xmin_file/to_radians<0) {
-		std::cerr<<    "***XMIN OFF: "<<xmin_file/to_radians<<" "    <<XMIN<<'\n';
+		std::cerr<<    "***XMIN OFF: "<<xmin_file/to_radians<<" "    <<0<<'\n';
 		exit(0);
 	}
     if (xmax_file/to_radians>360) {
