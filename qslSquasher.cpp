@@ -173,13 +173,17 @@ struct sys_func
     
     sys_func( const vector2_type &_B, const vector2_type &_ff, const ind2_type &_ff_lookup  ) : B( _B ), ff( _ff ), ff_lookup( _ff_lookup ) { }
 
-#if GEOMETRY==CARTESIAN
-    void operator()( const state_type &x , state_type &dxdt , double t ) const
-    {
-#else
     void operator()( const state_type &xx , state_type &dxdt , double t ) const
     {
         state_type x=xx;
+#if GEOMETRY==CARTESIAN
+	    #ifdef PERIODIC_XY
+        vex::tie(x(0),x(1))=std::make_tuple(
+			fmod(x(0)-xmin_file+(xmax_file-xmin_file),xmax_file-xmin_file)+xmin_file,
+			fmod(x(1)-ymin_file+(ymax_file-ymin_file),ymax_file-ymin_file)+ymin_file
+		);
+		#endif
+#else
         VEX_CONSTANT(ccc, (double) SOLAR_RADIUS); // scale by solar radius, to make the units in the x,y,z the same. This is important for sanely dealing with the error tol's.
         x(0)/=ccc();//undo scale done in main()
         x(1)/=ccc();
@@ -1053,7 +1057,14 @@ void integrate_streamlines(std::vector< std::vector< std::vector< double >> > &R
 					VEX_CONSTANT(ccc,  (double)SOLAR_RADIUS);
 		            X(0)*=ccc();
 		            X(1)*=ccc(); 
- 			#endif
+ 			#else
+ 				    #ifdef PERIODIC_XY
+						vex::tie(X(0),X(1))=std::make_tuple(
+							fmod(X(0)-xmin_file+(xmax_file-xmin_file),xmax_file-xmin_file)+xmin_file,
+							fmod(X(1)-ymin_file+(ymax_file-ymin_file),ymax_file-ymin_file)+ymin_file
+						);
+					#endif
+			#endif
                 	integrate_adaptive( make_controlled< error_stepper_type >(eps_abs, eps_rel)  , sys_func( B ,ff, ff_lookup) , X ,0.,INTEGRATION_RANGE , step );
 			#if GEOMETRY==SPHERICAL
 		            X(0)/=ccc();
@@ -1082,6 +1093,13 @@ void integrate_streamlines(std::vector< std::vector< std::vector< double >> > &R
 									fmod(X(0)-xmin_file+(floor(fabs(X(1))*M_2_PI)+2.)*M_PI,2.*M_PI)+xmin_file,
 									M_PI_2-fabs(fabs(X(1)+M_PI_2)-M_PI)
 									);
+						#else
+							    #ifdef PERIODIC_XY
+								vex::tie(X(0),X(1))=std::make_tuple(
+									fmod(X(0)-xmin_file+(xmax_file-xmin_file),xmax_file-xmin_file)+xmin_file,
+									fmod(X(1)-ymin_file+(ymax_file-ymin_file),ymax_file-ymin_file)+ymin_file
+								);
+								#endif
 						#endif
 						
 						
@@ -1144,6 +1162,13 @@ void integrate_streamlines(std::vector< std::vector< std::vector< double >> > &R
 									fmod(X(0)-xmin_file+(floor(fabs(X(1))*M_2_PI)+2.)*M_PI,2.*M_PI)+xmin_file,
 									M_PI_2-fabs(fabs(X(1)+M_PI_2)-M_PI)
 									);
+				#else
+					    #ifdef PERIODIC_XY
+							vex::tie(X(0),X(1))=std::make_tuple(
+								fmod(X(0)-xmin_file+(xmax_file-xmin_file),xmax_file-xmin_file)+xmin_file,
+								fmod(X(1)-ymin_file+(ymax_file-ymin_file),ymax_file-ymin_file)+ymin_file
+							);
+						#endif
 				#endif
 		
 		

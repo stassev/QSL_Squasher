@@ -37,36 +37,41 @@ VEX_FUNCTION(cl_ushort4, find_index, (double, x)(double, y)(double,z)(cl_double4
 	// Check for out-of-range values
     ushort a=1;
     
-    #ifndef GLOBAL_MODEL
-    if (x<xmin) {
-        x=xmin+1.e-6;
-			a=0;
-    }
-    if (x>=xmax)  {
-         x=xmax-1.e-6;
-		 a=0;
-    }
-    #else
-		x=fmod((x+M_PI*2.0000001),(2.*M_PI));
-    #endif
-
-
-    if (y<ymin) {
-        y=ymin+1.e-6; 
+	#ifdef PERIODIC_XY
+		x=fmod(x-ff[0].s0+ff[nx-1].s0-ff[0].s0,ff[nx-1].s0-ff[0].s0)+ff[0].s0;
+		y=fmod(y-ff[0].s1+ff[ny-1].s1-ff[0].s1,ff[ny-1].s1-ff[0].s1)+ff[0].s1;
+	#else
 		#ifndef GLOBAL_MODEL
+		if (x<xmin) {
+			x=xmin+1.e-6;
+				a=0;
+		}
+		if (x>=xmax)  {
+			x=xmax-1.e-6;
 			a=0;
+		}
+		#else
+			x=fmod((x+M_PI*2.0000001),(2.*M_PI));
 		#endif
-    }
+		if (y<ymin) {
+			y=ymin+1.e-6; 
+			#ifndef GLOBAL_MODEL
+				a=0;
+			#endif
+		}
+		if (y>=ymax) {
+			y=ymax-1.e-6;
+			#ifndef GLOBAL_MODEL
+				a=0;
+			#endif
+		}
+	#endif
+
+
+    
     if (z<z_minimum) {
         z=z_minimum+1.e-6;
         a=0;
-    }
-    
-    if (y>=ymax) {
-         y=ymax-1.e-6;
-		 #ifndef GLOBAL_MODEL
-		 	a=0;
-		 #endif
     }
 
     if (z>=zmax)  {

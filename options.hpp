@@ -50,6 +50,8 @@ std::string in_filename="";
 
 #if (GEOMETRY==SPHERICAL)
     //#define GLOBAL_MODEL
+#else
+    //#define PERIODIC_XY
 #endif
 
 

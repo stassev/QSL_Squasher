@@ -22,28 +22,29 @@ VEX_FUNCTION(cl_double4, interp_trilinear, (double, x)(double, y)(double,z)(cl_d
     DEFS();
     double a=1.0;
     if (ind.s3 == 0) a=1e-9;
-
-	#ifndef GLOBAL_MODEL
-		if (x<ff[0].s0) 
-			x=ff[0].s0+1.e-6;
-		
-		if (x>=ff[nx-1].s0)  
-			x=ff[nx-1].s0-1.e-6; 
-    #else
-		x=fmod((x+M_PI*2.0000001),(2.*M_PI));
-    #endif
-
-    if (y<ff[0].s1) 
-        y=ff[0].s1+1.e-6; 
-        
+    
+    #ifdef PERIODIC_XY
+		x=fmod(x-ff[0].s0+ff[nx-1].s0-ff[0].s0,ff[nx-1].s0-ff[0].s0)+ff[0].s0;
+		y=fmod(y-ff[0].s1+ff[ny-1].s1-ff[0].s1,ff[ny-1].s1-ff[0].s1)+ff[0].s1;
+	#else 
+		#ifndef GLOBAL_MODEL
+			if (x<ff[0].s0) 
+				x=ff[0].s0+1.e-6;
+			
+			if (x>=ff[nx-1].s0)  
+				x=ff[nx-1].s0-1.e-6; 
+		#else
+			x=fmod((x+M_PI*2.0000001),(2.*M_PI));
+		#endif
+		if (y<ff[0].s1) 
+			y=ff[0].s1+1.e-6; 
+		if (y>=ff[ny-1].s1) 
+			y=ff[ny-1].s1-1.e-6; 
+	#endif
+	
     if (z<z_minimum) 
         z=z_minimum+1.e-6; 
     
-
-
-    if (y>=ff[ny-1].s1) 
-        y=ff[ny-1].s1-1.e-6; 
-        
     if (z>=ff[nz-1].s2)  
         z=ff[nz-1].s2-1.e-6; 
     
@@ -128,6 +129,10 @@ VEX_FUNCTION(cl_double4, interp_trilinear_diff, (double, x)(double, y)(double,z)
     double fy=ff[j].s1;
     double fz=ff[k].s2;
 
+	#ifdef PERIODIC_XY
+		x=fmod(x-ff[0].s0+ff[nx-1].s0-ff[0].s0,ff[nx-1].s0-ff[0].s0)+ff[0].s0;
+		y=fmod(y-ff[0].s1+ff[ny-1].s1-ff[0].s1,ff[ny-1].s1-ff[0].s1)+ff[0].s1;
+	#endif
 	#ifdef GLOBAL_MODEL
 		x=fmod((x+M_PI*2.0000001),(2.*M_PI));
     #endif    
