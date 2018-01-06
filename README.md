@@ -19,4 +19,6 @@ kindly ask you to reference the paper above.
 
 **Revision History:**
 
+ver. 1.2 (Jan 5, 2018): Added terms neglected in eq.6 of paper. Terms have no effect on identification of QSL locations. Only Q values in spherical coordinates are affected. The extra contributions are suppressed by the ratio (\delta r/R), where \delta r is the scale over which B varies and R is the radius of the Sun. 
+
 ver. 1.1 (June 27, 2017): Added support for global models (covering the Sun in longitude and latitude). Treat the poles as well as the periodicity in longitude correctly.

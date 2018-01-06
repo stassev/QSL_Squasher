@@ -193,8 +193,8 @@ struct sys_func
         ind2_type ind = find_index(x(0),x(1),x(2),vex::raw_pointer(ff),vex::raw_pointer(ff_lookup));
         vector2_type d =  INTERP( x(0),x(1),x(2), vex::raw_pointer(B), vex::raw_pointer(ff),ind);
 		#if (GEOMETRY==SPHERICAL)
-            dxdt(0) = ccc()*extract0(d)*x2c;  
-            dxdt(1) = ccc()*extract1(d)/x(2); 
+            dxdt(0) = extract0(d)*x2c;  
+            dxdt(1) = extract1(d)/x(2); 
         #else
             dxdt(0) = extract0(d);
             dxdt(1) = extract1(d);
@@ -208,6 +208,8 @@ struct sys_func
 		#if (GEOMETRY==SPHERICAL)
             dxdt(0+3*1) = extract0(d)*x2c;  
             dxdt(1+3*1) = extract1(d)/x(2); 
+            dxdt(1+3*1) -= x(2+3*1)/x(2)*dxdt(1); 
+            dxdt(0+3*1) -= (x(2+3*1)/x(2)-x(1+3*1)*tan(x(1)))*dxdt(0); 
         #else
             dxdt(0+3*1) = extract0(d);
             dxdt(1+3*1) = extract1(d);
@@ -219,12 +221,18 @@ struct sys_func
 		#if (GEOMETRY==SPHERICAL)
             dxdt(0+3*2) = extract0(d)*x2c;  
             dxdt(1+3*2) = extract1(d)/x(2); 
+			dxdt(1+3*2) -= x(2+3*2)/x(2)*dxdt(1); 
+            dxdt(0+3*2) -= (x(2+3*2)/x(2)-x(1+3*2)*tan(x(1)))*dxdt(0); 
         #else        
             dxdt(0+3*2) = extract0(d);
             dxdt(1+3*2) = extract1(d);
         #endif
         dxdt(2+3*2) = extract2(d); 
 #endif   
+		#if (GEOMETRY==SPHERICAL)
+            dxdt(0) *= ccc();  
+            dxdt(1) *= ccc();
+        #endif
     }
 };
 //]
@@ -1095,6 +1103,8 @@ void integrate_streamlines(std::vector< std::vector< std::vector< double >> > &R
 						#if (GEOMETRY==SPHERICAL)
                             dxdt(0+3*1) = extract0(d)/(X(2)*cos(X(1)));  
                             dxdt(1+3*1) = extract1(d)/X(2); 
+                            dxdt(1+3*1) -= X(2+3*1)/X(2)*dxdt(1); 
+                            dxdt(0+3*1) -= (X(2+3*1)/X(2)-X(1+3*1)*tan(X(1)))*dxdt(0);
                         #else
                             dxdt(0+3*1) = extract0(d);
                             dxdt(1+3*1) = extract1(d);
@@ -1105,6 +1115,8 @@ void integrate_streamlines(std::vector< std::vector< std::vector< double >> > &R
 						#if (GEOMETRY==SPHERICAL)
                             dxdt(0+3*2) = extract0(d)/(X(2)*cos(X(1)));  
                             dxdt(1+3*2) = extract1(d)/X(2); 
+                            dxdt(1+3*2) -= X(2+3*2)/X(2)*dxdt(1);
+                            dxdt(0+3*2) -= (X(2+3*2)/X(2)-X(1+3*2)*tan(X(1)))*dxdt(0);
                         #else
                             dxdt(0+3*2) = extract0(d);
                             dxdt(1+3*2) = extract1(d);
@@ -1193,6 +1205,7 @@ void integrate_streamlines(std::vector< std::vector< std::vector< double >> > &R
 
             }
         }
+        B*=-1.0;
 }
 
 
