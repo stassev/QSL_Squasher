@@ -24,6 +24,16 @@ from evtk.hl import gridToVTK
 import pandas as pd
 from numpy import exp
 
+from scipy import ndimage as nd
+
+def fill_gaps(data, ofl): 
+    mask=ofl*0
+    mask[np.where(ofl<-0.5)]=True
+    ind = nd.distance_transform_edt(mask, 
+                                    return_distances=False, 
+                                    return_indices=True)
+    return data[tuple(ind)]
+
 ########################################################################
 ########################################################################
 # Uses the output from snapshot.cpp
@@ -77,6 +87,8 @@ yy=((np.array(range(ny_out),dtype='float32'))/(ny_out-1.0)*Ly+ymin)
 z_sampler=np.vectorize(z_sampler)
 zz=z_sampler(np.array(range(nz_out),dtype='float32')/(nz_out-1))
 log10q=(np.array(arr))[...,0].reshape((nx_out,ny_out,nz_out))
+gaps=(np.array(arr))[...,1].reshape((nx_out,ny_out,nz_out))
+log10q=fill_gaps(log10q,gaps)
 
 if (CALCULATE=='FIELD_LINE_LENGTH'):
     import scipy.ndimage.filters

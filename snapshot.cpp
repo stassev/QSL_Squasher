@@ -66,63 +66,43 @@ std::string raw_file="raw.dat";
 
 //#include "options.hpp"
 #include "peano.cpp"
-struct qsl_struct {
-  uint64_t x;
-  float qsl;
-  size_t i;
-  size_t j;
-  #if QSL_DIM==3
-	size_t k;
-  #endif
-} ;
 
 struct out_struct {
   float qsl;
+  int gap;
 } ;
 
-bool comparison (const qsl_struct & i,const qsl_struct& j) { return (i.x<j.x); }
-
-typedef std::vector< qsl_struct > qsl_type;
 typedef std::vector< out_struct > out_type;
 
 
 int main( void )
 {
     using namespace std;
-    
-    size_t init_size=512*512; // exact value is not important
-    
-    size_t qsl_size=init_size;
     size_t nin=0;
-    
-
-
-    qsl_type qsl(init_size);
-    qsl_type qsl_out(nout);
     out_type arr(nout);
-//    vector <double> arr(nout,0.0);
     FILE *file;
-
-    
+	for (size_t kk=0;kk<nout;kk++){
+		arr[kk].qsl=-1000;
+		arr[kk].gap=-1;
+	}
     //cerr<<"ok0a\n";
     {
-        float q,m,bx,by,bz,h,jx,jy,jz,a,v,t;
-        uint64_t d;
+        float q,m,bx,by,bz,h,a,v,t;
+        uint64_t d,k;
+        int ofl;
+        uint64_t xx,yy,zz;
+        uint64_t xx_out,yy_out,zz_out;
         file = fopen((raw_file).c_str(), "r");
 
 
-        size_t i=0;
         float tmp;
         while (!feof(file)) {
+                nin+=1;
 				int check=fscanf(file, "%lu%g%g%g%g", &d,&tmp,&tmp,&tmp,&q );
 				if ((check!=5)&&(check>0)){
 					std::cerr<<"***Problem with raw file at line "<<nin<<'\n';
 					exit(0);
 			    }
-            if (qsl_size==i){
-                qsl_size+=init_size;
-                qsl.resize(qsl_size);
-            }
          #if CALCULATE==QSL
             if (q>1e-6) q=log10(q);       
             else q=-1000;                     
@@ -131,94 +111,37 @@ int main( void )
                 q=-1000;
             }
          #endif
-            qsl[i].qsl=q;
-            qsl[i].x=d;
-            nin++;
-            i++;
-            
-        }
-        fclose(file);
-        qsl.resize(nin);
-        std::sort (qsl.begin(), qsl.begin()+nin, comparison);
-       }
-    
-    
-    for (uint64_t i=0;i<nx_out;i++)
-        for (uint64_t j=0;j<ny_out;j++)
-            #if QSL_DIM==3 
-                for (uint64_t k=0;k<nz_out;k++)
-            #endif
-            {
-                uint64_t x= (uint64_t) (double(MAX_RES)/double(nx_out)*double(i)+0.5);
-                uint64_t y= (uint64_t) (double(MAX_RES)/double(ny_out)*double(j)+0.5);
-                #if QSL_DIM==3
-                    uint64_t z= (uint64_t) (double(MAX_RES)/double(nz_out)*double(k)+0.5);
-                    size_t kk = k+nz_out*(j+ny_out*i);
-                    qsl_out[kk].x = peanokey (x,y,z);   
-                    qsl_out[kk].k=k;
-                #endif
-                #if QSL_DIM==2
-                    size_t kk = (j+ny_out*i);
-                    qsl_out[kk].x = peanokey (x,y);   
-                #endif
-                qsl_out[kk].qsl=-1000;
-                
-                qsl_out[kk].i=i;
-                qsl_out[kk].j=j;
+         
+            #if (QSL_DIM == 3)
+				point( d, &xx, &yy, &zz);
+				zz_out=(uint64_t) (double(zz)/double(MAX_RES-1)*double(nz_out-1)+0.5);
+				if (zz_out>nz_out-1)zz_out=nz_out-1;
+			#else
+				point( d, &xx, &yy);
+			#endif
+           
+            xx_out=(uint64_t) (double(xx)/double(MAX_RES-1)*double(nx_out-1)+0.5);
+            yy_out=(uint64_t) (double(yy)/double(MAX_RES-1)*double(ny_out-1)+0.5);
+            if (xx_out>nx_out-1)xx_out=nx_out-1;
+            if (yy_out>ny_out-1)yy_out=ny_out-1;
+
+			#if QSL_DIM==3
+				k=zz_out+nz_out*(yy_out+ny_out*xx_out);
+			#endif
+			#if QSL_DIM==2
+				k=(yy_out+ny_out*xx_out);
+			#endif
+			
+			if (arr[k].qsl < q){//take the maximum qsl 
+				arr[k].qsl = q;
+			}
+			if (arr[k].gap==-1) arr[k].gap=0;
 
         }
-    std::sort (qsl_out.begin(), qsl_out.end(), comparison);
-{
-    size_t i=0,k=0;
-    size_t k0,k1,i0,i1,t;
-    
-    uint64_t Hin0,Hin1,Hout0,Hout1;
-    
-    double d0,d1;
-    while (k<nin && i<nout-1){
-        Hout0=qsl_out[i].x;
-        Hout1=qsl_out[i+1].x;
-        
-        while (k<nin && qsl[k].x<Hout0) k++;
-        //if (k==-1) k=0; 
-        k0=k;
-        while (k<nin && qsl[k].x<Hout1) k++;
-        //std::cerr << k<< " 0 \n";
-        if ((k==-1) || (k==0)) k=1; 
-        //std::cerr << k<< " 1 \n";
-        k--;
-        k1=k;
-        
-        if (k1>=k0){
-            for (size_t kk=k0;kk<=k1;kk++){
-                if (qsl_out[i].qsl < qsl[kk].qsl){//take the maximum qsl 
-                    qsl_out[i].qsl = qsl[kk].qsl;
-                   
-                }
-                 
-            }
-        }
-        else{
-            t=k0;k0=k1;k1=t;//swap k0 and k1
-            qsl_out[i].qsl=(double(Hout0)-double(qsl[k0].x))/(double(qsl[k1].x)-double(qsl[k0].x)) * (qsl[k1].qsl-qsl[k0].qsl) + qsl[k0].qsl;
-                      
-        }
-        i++;
-    }
-}
-    size_t k;
-    for (size_t i=0;i<nout;i++){
-        #if QSL_DIM==3
-            k=qsl_out[i].k+nz_out*(qsl_out[i].j+ny_out*qsl_out[i].i);
-        #endif
-        #if QSL_DIM==2
-            k=(qsl_out[i].j+ny_out*qsl_out[i].i);
-        #endif
-        arr[k].qsl=qsl_out[i].qsl;
-        
+        fclose(file);
     }
     for (size_t i=0;i<nout;i++){
-        cout << arr[i].qsl;   
+        cout << arr[i].qsl << "\t" << arr[i].gap;   
         cout<< "\n";
     }
     
