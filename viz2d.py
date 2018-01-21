@@ -23,6 +23,16 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 
+from scipy import ndimage as nd
+
+def fill_gaps(data, ofl): 
+    mask=ofl*0
+    mask[np.where(ofl<-0.5)]=True
+    ind = nd.distance_transform_edt(mask, 
+                                    return_distances=False, 
+                                    return_indices=True)
+    return data[tuple(ind)]
+
 ########################################################################
 ########################################################################
 # Uses the output from snapshot.cpp
@@ -55,6 +65,8 @@ nx_out=512*8
 nx=nx_out
 ny=len(arr)//nx
 a=np.array(arr)[...,0].reshape((nx,ny)).T
+gaps=(np.array(arr))[...,1].reshape((nx,ny)).T
+a=fill_gaps(a,gaps)
 xmin=slice_center[0]-slice_lx/2.
 xmax=slice_center[0]+slice_lx/2.
 ymin=slice_center[1]-slice_ly/2.
