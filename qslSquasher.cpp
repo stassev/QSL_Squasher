@@ -1199,7 +1199,7 @@ void integrate_streamlines(std::vector< std::vector< std::vector< double >> > &R
                     for (size_t i = 0; i < n; ++i) {
 						    //cout <<i<<"\t"<< BB[i] << "\n";
                             #ifndef LOCAL_Q 
-                                if ((convergedQ[i]==0) ||(BB[i] < 1e-6) || (!(BB[i]==BB[i])) || field_line_length[i] >MAX_HALF_LENGTH_FIELD_LINE ){ 
+                                if ((convergedQ[i]==0) ||(BB[i] < 1e-12) || (!(BB[i]==BB[i])) || field_line_length[i] >=MAX_HALF_LENGTH_FIELD_LINE ){ 
 									    // zero stands for converged
 										// sometimes nan's appear in BB (seems to be a problem only for single precision. I think it's due to not enough precision when subtracting 1e-6 from boundaries ....)
 										// get rid of them by checking for ineq
@@ -1240,7 +1240,7 @@ void integrate_streamlines(std::vector< std::vector< std::vector< double >> > &R
 #if CALCULATE==QSL
 void add_samples_along_hilbert(qsl_type &qsl,size_t *qsl_num_pt){
         
-        uint64_t x,x1,k1,d1,k; //,m0,m1;
+        uint64_t x,x1,k1,d1,k,dx; //,m0,m1;
         size_t qsl_num = qsl_num_pt[0];
         size_t qsl_size=qsl.size();
         std::cerr<<"Starting sort..." << "\n";
@@ -1263,11 +1263,19 @@ void add_samples_along_hilbert(qsl_type &qsl,size_t *qsl_num_pt){
 					refine = (qsl[k].qsl>2.) && (qsl[k1].qsl>2.);//if labelling open field lines, those are marked with q=0, so skip refining at the boundaries of those regions
                 #endif
                 refine = refine && (fabs(qC-qP) > LENGTH_JUMP_REFINEMENT_THRESHOLD);
+                refine = refine && (qC>0) && (qP>0);
                 if (refine) {
                     x  = qsl[k].x;
                     x1 = qsl[k1].x;
-                    d1 = (uint64_t) ((double(x)+double(x1))/2.0+0.5);
-                    if (d1!=x && d1!=x1 && k1==k+1) {
+                    if (x1 >x) {
+						dx=x1-x;
+						d1=x+dx/2;
+					}
+                    else{
+						dx=x-x1;
+						d1=x1+dx/2;
+					}
+                    if ((d1!=x) && (d1!=x1) && (k1==k+1)) {
                         if (qsl_size==qsl_num){
                             qsl_size+=init_size;
                             qsl.resize(qsl_size);
