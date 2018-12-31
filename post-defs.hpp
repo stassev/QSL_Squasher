@@ -1,6 +1,6 @@
 /*
 	This file is part of QSL Squasher. 
-	Copyright (C) 2014-2018  Svetlin Tassev
+	Copyright (C) 2014-2019  Svetlin Tassev
 							 Harvard-Smithsonian Center for Astrophysics
 							 Braintree High School
 	
@@ -18,6 +18,14 @@
      along with this program.  If not, see <http://www.gnu.org/licenses/>.
     
 */
+
+
+#define  MAX_RES_BITS 20 // Used for generating the Hilbert keys. 
+// The largest resolution cube that 
+// can be indexed with Hilbert keys has 2^(MAX_RES_BITS*3) elements in 3d.
+//**********************************************************************
+#define nmax (1024*16) //A dummy set to a value larger than any of NX,NY,NZ.
+//**********************************************************************
 
 
 #define  MAX_RES (1<<MAX_RES_BITS) 	 //It should equal 2^MAX_RES_BITS
@@ -55,19 +63,19 @@ double ymin_file;
 double zmax_file;
 double zmin_file;
 
+double zmax_fileMid;
+double zmin_fileMid;
+double ymax_fileMid;
+double ymin_fileMid;
+double xmax_fileMid;
+double xmin_fileMid;
 
-#if INTERPOLATION_TYPE==TRILINEAR
-        #define INTERP(...) interp_trilinear (__VA_ARGS__)
-        #define INTERP_DIFF(...) interp_trilinear_diff (__VA_ARGS__)
-#endif
-#if INTERPOLATION_TYPE==TRIQUADRATIC
-        #define INTERP(...) interp_triquadratic (__VA_ARGS__)
-        #define INTERP_DIFF(...) interp_triquadratic_diff (__VA_ARGS__)
-#endif
-#if INTERPOLATION_TYPE==TRICUBIC
-        #define INTERP(...)  interp_tricubic (__VA_ARGS__)
-        #define INTERP_DIFF(...) interp_tricubic_diff (__VA_ARGS__)
-#endif
+
+
+#define INTERP(...) interp_trilinear (__VA_ARGS__)
+#define INTERPMID(...) interp_trilinearMid (__VA_ARGS__)
+#define INTERP_DIFF(...) interp_trilinear_diff (__VA_ARGS__)
+
 
 
 // default integration range for each integration iteration:
@@ -76,11 +84,7 @@ double zmin_file;
         #define INTEGRATION_RANGE 10.0//Mm
     #endif
     #ifndef INTEGRATION_STEPS_PER_CELL
-        #if INTEGRATION_SCHEME==EULER
-			#define INTEGRATION_STEPS_PER_CELL 30.
-		#else
-			#define INTEGRATION_STEPS_PER_CELL 1.
-		#endif
+        #define INTEGRATION_STEPS_PER_CELL 5.
     #endif
 #endif
 
@@ -93,7 +97,7 @@ bool SAMPLER_INITIALIZED=false;
 #if CALCULATE==QSL
     #define NUM_ODE 10
 #else
-    #define NUM_ODE 4
+    #define NUM_ODE 8
 #endif
 
 

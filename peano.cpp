@@ -7,7 +7,7 @@
 
 /*
 	This file is part of QSL Squasher. 
-	Copyright (C) 2014-2018  Svetlin Tassev
+	Copyright (C) 2014-2019  Svetlin Tassev
 							 Harvard-Smithsonian Center for Astrophysics
 							 Braintree High School
 	
@@ -270,19 +270,3 @@
      
 #endif
 
-
-//int main1( int argc , char **argv ){
-//
-// 	uint64_t xx=5430;
-//	uint64_t yy=662;
-//	uint64_t zz=9843;
-//	uint64_t pp= peanokey (xx,yy); //,zz);
-//	printf("hello %lu %d %d %d \n",pp,xx,yy,zz);
-//	xx=0;
-//	yy=0;
-//	zz=0;
-//	point (pp,&xx,&yy) ; // ,&zz);
-//	
-//	printf("hello %lu %lu %d %d \n",pp,xx,yy,zz);
-//	return 0;
-//}

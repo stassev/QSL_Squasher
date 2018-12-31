@@ -1,7 +1,7 @@
 .. ########################################################################
 .. ########################################################################
 .. #   This file is part of QSL Squasher. 
-.. #   Copyright (C) 2014-2017  Svetlin Tassev
+.. #   Copyright (C) 2014-2019  Svetlin Tassev
 .. #   						 Harvard-Smithsonian Center for Astrophysics
 .. #   						 Braintree High School
 .. #   
@@ -61,12 +61,19 @@ after each modification to the options below.
    only trilinear interpolation when this options is set. The poles, as well
    as the periodicity in longitude, are treated correctly.
 
+.. c:macro:: PERIODIC_XY
+
+   If set, then use periodic boundary conditions in X and Y.
+
 .. c:macro:: SOLAR_RADIUS
 
    The solar radius in Mm (default: ``696.``). Needed only for 
    spherical geometry.
    
+.. c:macro:: BOX_SIZE
 
+   The typical size of the box in Mm. Used to set sane default values for 
+   some of the other parameters of the code.
 
 .. c:macro:: QSL_DIM
    
@@ -151,16 +158,27 @@ of relevant options that need to be set:
 
 .. c:macro:: CALCULATE
 
-   The code calculates the squashing factor values when ``CALCULATE`` 
-   is set to ``QSL`` (default). When set to ``FIELD_LINE_LENGTH``, it 
-   calculates the length of the field lines passing through each 
-   sampled point. The code does not do refinements in the latter case, 
-   as those are unnecessary for the field-line length map (as long as 
-   the initial grid sampling is fine enough to resolve the connectivity 
-   domains of interest). When calculating field-line lengths, the code 
-   reuses the same infrastructure as when calculating the squashing 
-   factor values. Thus, one has to go through the same post-processing 
-   pipeline, irrespective of the option set by ``CALCULATE``.
+   The code calculates the local and global quantities associated with 
+   the transverse eigenvalues of the gradient of the normalized 
+   magnetic field when ``CALCULATE`` is set to 
+   ``TRANSVERSE_EIGENVALUES`` (default). As part of the output, the 
+   code will generate numerous .dat files containing the local 
+   quantities associated with the transverse eigenvalues. Those are 
+   post-processed by the python script and are output into the VTK 
+   files. When set to ``QSL``, the code calculates the squashing factor 
+   of the field lines passing through each sampled point. One has to go 
+   through the same post-processing pipeline, irrespective of the 
+   option set by ``CALCULATE``. 
+
+.. c:macro:: RHO_Z
+
+   When ``CALCULATE`` is set to ``TRANSVERSE_EIGENVALUES``, one can set
+   several options for how the squeezing rate is calculated by setting
+   ``RHO_Z`` to one of ``OPT1_LAMBDA``, ``OPT2_LAMBDA`` and ``SYMM_LAMBDA``.
+   For the first two, see the equations for options 1 and 2 for
+   :math:`\rho_{\mathcal{Z}}` in Section 2.2.3 of [Coiling]_. For the 
+   third (symmetrized) option, see Section 4.5 of the same paper.
+   
 
 .. c:macro:: n(x|y|z)_init
 
@@ -200,13 +218,6 @@ of relevant options that need to be set:
    W8100, which has 8GB memory.
 
 
-
-.. c:macro:: INTERPOLATION_TYPE
-
-   Pick one interpolation algorithm used for interpolating the B-field 
-   values. Possible values are: ``TRILINEAR`` (default), ``TRIQUADRATIC``, 
-   ``TRICUBIC``.
-   
 .. c:macro:: LENGTH_JUMP_REFINEMENT_THRESHOLD
 
    Specifies the threshold (default: 1Mm) for the change in field-line 
@@ -219,27 +230,12 @@ of relevant options that need to be set:
 
    Specifies the maximum number of refinements the code will make before
    exiting.
-   
-.. c:macro:: INTEGRATION_SCHEME
 
-   Specifies the integration scheme. One can set this to ``EULER`` 
-   (default) for an explicit Euler scheme, or to ``ADAPTIVE`` for 
-   adaptive stepping. The default adaptive stepper is Boost's 5-th 
-   order `runge_kutta_cash_karp54 
-   <http://www.boost.org/doc/libs/1_60_0/libs/numeric/odeint/doc/html/boost_numeric_odeint/odeint_in_detail/steppers.html>`_. 
-   You can always experiment with others by changing the corresponding 
-   line in :download:`qslSquasher.cpp`.
 
-.. c:macro:: eps_rel, eps_abs, DISPLACEMENT_WEIGHT
+.. c:macro:: MAX_BATCHSIZE
 
-   Have an effect only when one uses the ``ADAPTIVE`` integration 
-   scheme. The first two specify the relative and absolute error 
-   (defaults: ``1e-2``) for the adaptive stepper. Those bounds are both 
-   for the field line positions, as well as for the perturbations to the 
-   field lines that are needed for the squashing factor calculation. 
-   The ``DISPLACEMENT_WEIGHT`` (default: 10) boosts the weight of those 
-   perturbations, since their errors will otherwise be swamped by the errors in 
-   the positions.
+   Specifies the maximum number of field lines to be integrated in each 
+   refinement before the code exits.
 
 .. c:macro:: LOCAL_Q
 
@@ -272,22 +268,8 @@ of relevant options that need to be set:
    for the field line integrators. The step size is such that there are 
    roughly ``INTEGRATION_STEPS_PER_CELL`` steps in each cell in the 
    input grids. The resulting step size (printed to ``stderr``) is the 
-   integration step for the Euler integration scheme, or is the initial 
-   step for the adaptive stepper. If left undefined, sane defaults are 
-   set in :download:`qslSquasher.cpp`.
+   integration step for the Euler integration scheme. If left undefined, 
+   sane defaults are set.
    
-.. c:macro:: MARK_OPEN_FIELD_LINES
 
-   When ``MARK_OPEN_FIELD_LINES`` is defined (default), then the code 
-   calculates `Q` values only for field lines which begin and end at 
-   the bottom surface of the volume, corresponding to `z` or height 
-   above the photosphere equal to `ZMIN` for cartesian or spherical 
-   geometry, respectively. Open field lines are marked with the generic 
-   value of `-1000`, which is used for any junk values encountered by the 
-   code. If this keyword is left undefined, then the code calculates 
-   the `Q` value for all points in the volume, irrespective of whether 
-   they belong to open field lines or not. For open field lines, the 
-   `Q` value is calculated between the two endpoints of the field 
-   lines, independent of whether those occur at the bottom boundary or 
-   not.
    

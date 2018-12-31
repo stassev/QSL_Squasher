@@ -1,7 +1,7 @@
 .. ########################################################################
 .. ########################################################################
 .. #   This file is part of QSL Squasher. 
-.. #   Copyright (C) 2014-2017  Svetlin Tassev
+.. #   Copyright (C) 2014-2019  Svetlin Tassev
 .. #   						 Harvard-Smithsonian Center for Astrophysics
 .. #   						 Braintree High School
 .. #   
@@ -48,81 +48,70 @@ default settings. Note that in the session below, qslSquasher was
 killed after two mesh refinements. ::
 
 	$ time ./compile.sh 
+
+	  real	0m20.256s
+	  user	0m19.788s
+	  sys	0m0.393s
 	  
-	  real	0m28.613s
-	  user	0m27.370s
-	  sys	0m0.417s
 	$ time ./qslSquasher > raw.dat
-	  1. Intel(R) Core(TM) i5-5200U CPU @ 2.20GHz (Intel(R) OpenCL)
+	  1. pthread-Intel(R) Core(TM) i7-8650U CPU @ 1.90GHz (Portable Computing Language)
 	  
+	  Calculating current ...
+	  ... done.
+	  Analyzing transverse FL motions ...
+	  ... done.
 	  Reading successful.
 	  Integration step set at 0.022446 Mm
 	  Initialization successful.
 	  Number of field lines to be integrated in this mesh refinement step: 262144
 	  Beginning FORWARD integration along field lines ...
-	  # of computed field lines = 0 out of 262144 in mesh refinement: 0
-	  # of computed field lines = 103793 out of 262144 in mesh refinement: 0
-	 	 ... skipping lines ...
-	  # of computed field lines = 262118 out of 262144 in mesh refinement: 0
+	  # of computed field lines = 0 out of 242172 in mesh refinement: 0
+	     ... skipping lines ...
+	  # of computed field lines = 242166 out of 242172 in mesh refinement: 0
 	  Beginning BACKWARD integration along field lines ...
-	  # of computed field lines = 0 out of 262144 in mesh refinement: 0
-	 	 ... skipping lines ...
-	  # of computed field lines = 262118 out of 262144 in mesh refinement: 0
-	  Q values calculated successfully.
+	  # of computed field lines = 0 out of 242172 in mesh refinement: 0
+	     ... skipping lines ...
+	  # of computed field lines = 242166 out of 242172 in mesh refinement: 0
+	  Quantities calculated successfully.
 	  Starting sort...
 	  ... done sorting.
 	  Starting sort...
 	  ... done sorting.
-	  Number of field lines to be integrated in this mesh refinement step: 34352
+	  Number of field lines to be integrated in this mesh refinement step: 265381
 	  Beginning FORWARD integration along field lines ...
-	  # of computed field lines = 0 out of 34352 in mesh refinement: 1
-	 	 ... skipping lines ...
-	  # of computed field lines = 34250 out of 34352 in mesh refinement: 1
-	  Q values calculated successfully.
+	  # of computed field lines = 0 out of 265223 in mesh refinement: 1
+	     ... skipping lines ...
+	  # of computed field lines = 265221 out of 265223 in mesh refinement: 1
+	  Beginning BACKWARD integration along field lines ...
+	  # of computed field lines = 0 out of 265223 in mesh refinement: 1
+	     ... skipping lines ...
+	  # of computed field lines = 265222 out of 265223 in mesh refinement: 1
+	  Quantities calculated successfully.
 	  Starting sort...
 	  ... done sorting.
 	  Starting sort...
 	  ... done sorting.
-	  Number of field lines to be integrated in this mesh refinement step: 34609
+	  Number of field lines to be integrated in this mesh refinement step: 557436
 	  Beginning FORWARD integration along field lines ...
-	  # of computed field lines = 0 out of 34609 in mesh refinement: 2
-	 	 ... skipping lines ...
-	  # of computed field lines = 34597 out of 34609 in mesh refinement: 2
-	  Q values calculated successfully.
-	  Starting sort...
-	  ... done sorting.
-	  Starting sort...
-	  ... done sorting.
-	  Number of field lines to be integrated in this mesh refinement step: 41122
-	  Beginning FORWARD integration along field lines ...
-	  # of computed field lines = 0 out of 41122 in mesh refinement: 3
-	 	 ... skipping lines ...
-	  # of computed field lines = 41018 out of 41122 in mesh refinement: 3
-	  Q values calculated successfully.
-	  Starting sort...
-	  ... done sorting.
-	  Starting sort...
-	  ... done sorting.
-	  Number of field lines to be integrated in this mesh refinement step: 48880
-	  Beginning FORWARD integration along field lines ...
-	  # of computed field lines = 0 out of 48880 in mesh refinement: 4
-	 	 ... skipping lines ...
-	  # of computed field lines = 48866 out of 48880 in mesh refinement: 4
-	  Q values calculated successfully.
+	  # of computed field lines = 0 out of 556914 in mesh refinement: 2
+	     ... skipping lines ...
+	  # of computed field lines = 3897603 out of 3897606 in mesh refinement: 5
+	  Quantities calculated successfully.
 	  ^C
-	  real	2m23.511s
-	  user	8m17.523s
-	  sys	0m25.037s
-	$ time ./snapshot > grid3d.dat 
 	  
-	  real	0m1.999s
-	  user	0m1.937s
-	  sys	0m0.060s
-	$ time python2 viz3d.py
+	  real	19m46.221s
+	  user	119m21.692s
+	  sys	2m16.436s
+	$ time ./snapshot > grid3d.dat
 	  
-	  real	0m7.020s
-	  user	0m6.450s
-	  sys	0m0.317s
+	  real	0m12.897s
+	  user	0m12.611s
+	  sys	0m0.260s
+	$ time python viz3d.py
+
+	  real	0m19.614s
+	  user	0m18.337s
+	  sys	0m1.218s
 	$ paraview --state=viz3d_paraview.pvsm
 	
 
@@ -133,11 +122,11 @@ several output files:
 
 * :file:`grid3d.dat` is the result of the first post-processing step done by :download:`snapshot.cpp`.
 
-* :file:`SquashingFactor_CartCoo.vtr` is a VTK file, containing the 
-  rectilinear grid of Q values in cartesian coordinates. 
+* :file:`Global_Quantities.vtr` is a VTK file, containing the 
+  rectilinear grid of global quantities in cartesian coordinates. 
   
-* :file:`MagneticField_CartCoo.vtr` is a VTK file, containing the 
-  rectilinear grid of magnetic field component values in 
+* :file:`Local_Quantities.vtr` is a VTK file, containing the 
+  rectilinear grid of local quantities in 
   cartesian coordinates. This file is generated from the input files 
   used by ``qslSquasher``.
   

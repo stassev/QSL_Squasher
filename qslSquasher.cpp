@@ -1,6 +1,6 @@
 /*
 	This file is part of QSL Squasher. 
-	Copyright (C) 2014-2018  Svetlin Tassev
+	Copyright (C) 2014-2019  Svetlin Tassev
 							 Harvard-Smithsonian Center for Astrophysics
 							 Braintree High School
 	
@@ -28,15 +28,6 @@
 #include <vexcl/vexcl.hpp>
 #include <vexcl/devlist.hpp>
 #include <boost/numeric/odeint.hpp>
-//[ vexcl_includes
-#if (INTEGRATION_SCHEME==ADAPTIVE)
-	#include <boost/numeric/odeint/external/vexcl/vexcl.hpp>
-#endif
-//]
-//#include <boost/numeric/odeint/external/vexcl/vexcl_resize.hpp>
-//#include <boost/numeric/ublas/matrix.hpp>
-//#include <boost/numeric/ublas/io.hpp>
-//#include <boost/numeric/ublas/lu.hpp>
 
 
 #include "options.hpp"
@@ -59,6 +50,7 @@ typedef vex::multivector< ushort, 3 > u_type;
 //]
 
 #include <algorithm>    // std::sort
+#include <fstream>
 
 
 int batch_num;
@@ -83,9 +75,18 @@ void q_calculation( std::vector< std::vector< std::vector< double >> > &R, vex::
                     vector2_type &B,vector2_type &Borig,vector2_type &ff,qsl_type&qsl,ind2_type &ff_lookup);
 void initialize( std::vector< std::vector< std::vector< double >> > &R, vex::Context &ctx, 
                     vector2_type &B,vector2_type &Borig,vector2_type &ff,qsl_type&qsl,ind2_type &ff_lookup);
+#if CALCULATE!=QSL
+void reading( vex::Context &ctx, 
+                    vector2_type &B,vector2_type &Borig,vector2_type &ff,ind2_type &ff_lookup,vector2_type &Locals,ind2_type &ff_lookupMid,vector2_type &ffMid);
+void integrate_streamlines(std::vector< std::vector< std::vector< double >> > &R,vex::Context &ctx,
+			vector2_type &B,vector2_type &ff,ind2_type &ff_lookup,vector2_type &Locals,ind2_type &ff_lookupMid
+			,vector2_type &ffMid);
+#else
 void reading( vex::Context &ctx, 
                     vector2_type &B,vector2_type &Borig,vector2_type &ff,ind2_type &ff_lookup);
-void integrate_streamlines(std::vector< std::vector< std::vector< double >> > &R,vex::Context &ctx,vector2_type &B,vector2_type &ff,ind2_type &ff_lookup);
+void integrate_streamlines(std::vector< std::vector< std::vector< double >> > &R,vex::Context &ctx,
+			vector2_type &B,vector2_type &ff,ind2_type &ff_lookup);
+#endif			
 void length_calculation( std::vector< std::vector< std::vector< double >> > &R, vex::Context &ctx, 
                     vector2_type &B,vector2_type &Borig,vector2_type &ff,qsl_type&qsl,ind2_type &ff_lookup);
             
@@ -96,17 +97,22 @@ void length_calculation( std::vector< std::vector< std::vector< double >> > &R, 
     SIZES() \
     const double z_minimum=solar_radius_sub+ZMIN;
 
+#if CALCULATE>QSL  
+std::vector < double > IntegrandA,IntegrandB,IntegrandC,IntegrandD;
+std::vector < double > HxMid,HyMid,HzMid;
+#endif
 std::vector < double > Bx,By,Bz,Hx,Hy,Hz;
 
 
 #include "interpolation_trilinear.cpp"
-#include "interpolation_triquadratic.cpp"
-#include "interpolation_tricubic.cpp"
-
 #include "find_index.hpp"
 
 DEFS();
 
+#if CALCULATE>QSL             
+    #include "find_current.cpp"
+    #include "find_hft.cpp"
+#endif
 
 
 
@@ -163,89 +169,6 @@ VEX_FUNCTION(int,extract3u,(cl_ushort4, v),
 ////
 ////
 
-
-
-struct sys_func
-{
-    const vector2_type &B;
-    const vector2_type &ff;
-    const ind2_type &ff_lookup;
-    
-    sys_func( const vector2_type &_B, const vector2_type &_ff, const ind2_type &_ff_lookup  ) : B( _B ), ff( _ff ), ff_lookup( _ff_lookup ) { }
-
-    void operator()( const state_type &xx , state_type &dxdt , double t ) const
-    {
-        state_type x=xx;
-#if GEOMETRY==CARTESIAN
-	    #ifdef PERIODIC_XY
-        vex::tie(x(0),x(1))=std::make_tuple(
-			fmod(x(0)-xmin_file+(xmax_file-xmin_file),xmax_file-xmin_file)+xmin_file,
-			fmod(x(1)-ymin_file+(ymax_file-ymin_file),ymax_file-ymin_file)+ymin_file
-		);
-		#endif
-#else
-        VEX_CONSTANT(ccc, (double) SOLAR_RADIUS); // scale by solar radius, to make the units in the x,y,z the same. This is important for sanely dealing with the error tol's.
-        x(0)/=ccc();//undo scale done in main()
-        x(1)/=ccc();
-        //fix periodicities
-        vex::tie(x(0),x(1))=std::make_tuple(
-					fmod(x(0)-xmin_file+(floor(fabs(x(1))*M_2_PI)+2.)*M_PI,2.*M_PI)+xmin_file,
-					M_PI_2-fabs(fabs(x(1)+M_PI_2)-M_PI)
-				);
-        vector_type x2c=1.0/(x(2)*cos(x(1)));
-#endif
-        ind2_type ind = find_index(x(0),x(1),x(2),vex::raw_pointer(ff),vex::raw_pointer(ff_lookup));
-        vector2_type d =  INTERP( x(0),x(1),x(2), vex::raw_pointer(B), vex::raw_pointer(ff),ind);
-		#if (GEOMETRY==SPHERICAL)
-            dxdt(0) = extract0(d)*x2c;  
-            dxdt(1) = extract1(d)/x(2); 
-        #else
-            dxdt(0) = extract0(d);
-            dxdt(1) = extract1(d);
-        #endif
-        dxdt(2) = extract2(d);  
-
-        dxdt(NUM_ODE-1) = extract3(d);  
-#if (CALCULATE==QSL)
-        d = INTERP_DIFF(x(0),x(1),x(2),x(0+3*1),x(1+3*1),x(2+3*1), vex::raw_pointer(B), vex::raw_pointer(ff),ind);
-		
-		#if (GEOMETRY==SPHERICAL)
-            dxdt(0+3*1) = extract0(d)*x2c;  
-            dxdt(1+3*1) = extract1(d)/x(2); 
-            dxdt(1+3*1) -= x(2+3*1)/x(2)*dxdt(1); 
-            dxdt(0+3*1) -= (x(2+3*1)/x(2)-x(1+3*1)*tan(x(1)))*dxdt(0); 
-        #else
-            dxdt(0+3*1) = extract0(d);
-            dxdt(1+3*1) = extract1(d);
-        #endif
-        dxdt(2+3*1) = extract2(d); 
-
-        d = INTERP_DIFF(x(0),x(1),x(2),x(0+3*2),x(1+3*2),x(2+3*2), vex::raw_pointer(B), vex::raw_pointer(ff),ind);
-	
-		#if (GEOMETRY==SPHERICAL)
-            dxdt(0+3*2) = extract0(d)*x2c;  
-            dxdt(1+3*2) = extract1(d)/x(2); 
-			dxdt(1+3*2) -= x(2+3*2)/x(2)*dxdt(1); 
-            dxdt(0+3*2) -= (x(2+3*2)/x(2)-x(1+3*2)*tan(x(1)))*dxdt(0); 
-        #else        
-            dxdt(0+3*2) = extract0(d);
-            dxdt(1+3*2) = extract1(d);
-        #endif
-        dxdt(2+3*2) = extract2(d); 
-#endif   
-		#if (GEOMETRY==SPHERICAL)
-            dxdt(0) *= ccc();  
-            dxdt(1) *= ccc();
-        #endif
-    }
-};
-//]
-
-
-
-
-
-
 #define u1 X(0+3*1)
 #define u2 X(1+3*1)
 #define u3 X(2+3*1)
@@ -261,22 +184,26 @@ int main( int argc , char **argv )
     using namespace std;
     using namespace odeint;
     
-    
     qsl_type qsl(init_size);
     for (size_t i=0;i<init_size;i++)qsl[i].finishedQ=true;
 
     // setup the opencl context
     vex::Context ctx( vex::Filter::Type(OpenCL_DEVICE_TYPE) && vex::Filter::Position(NGPU) );
     std::cerr << ctx << std::endl;
-    vex::Reductor<int,vex::SUM> sum(ctx.queue());
-    
     
     vector2_type B( ctx.queue() , n_box );
     vector2_type Borig( ctx.queue() , n_box );
     vector2_type ff( ctx.queue() , nmax );
     ind2_type ff_lookup( ctx.queue() , nmax );
     
+#if CALCULATE!=QSL
+    ind2_type ff_lookupMid( ctx.queue() , nmax );
+    vector2_type ffMid( ctx.queue() , nmax );
+    vector2_type Locals( ctx.queue() , n_box );
+    reading(ctx,B,Borig,ff,ff_lookup,Locals,ff_lookupMid,ffMid);
+#else    
     reading(ctx,B,Borig,ff,ff_lookup);
+#endif
     cerr<<"Reading successful." << "\n";
     
     double step1;
@@ -310,9 +237,15 @@ int main( int argc , char **argv )
 		xmax_file=2.*M_PI;
 		ymin_file=-M_PI_2;
 		ymax_file=M_PI_2;
+        #if CALCULATE!=QSL
+		xmin_fileMid=0.0;
+		xmax_fileMid=2.*M_PI;
+		ymin_fileMid=-M_PI_2;
+		ymax_fileMid=M_PI_2;
+        #endif
     #endif
     
-    while ((BATCHSIZE>0) &&(batch_num<MAX_REFINEMENTS)){
+    while ((BATCHSIZE>0) &&(batch_num<MAX_REFINEMENTS) && (BATCHSIZE<MAX_BATCHSIZE)){
         batch_num++;
         cerr << "Number of field lines to be integrated in this mesh refinement step: " << BATCHSIZE << "\n";
         for (size_t i=0;i<2;i++)
@@ -327,10 +260,15 @@ int main( int argc , char **argv )
 
                 
                 hilbert_to_coo(qsl,&xx,&yy,&zz,i);
-                
-                if ((xx<=xmax_file) && (xx>=xmin_file) &&
-                    (yy<=ymax_file) && (yy>=ymin_file) &&
-                    (zz<=zmax_file) && (zz>=zmin_file)) {
+                #if CALCULATE==QSL
+                 if ((xx<=xmax_file) && (xx>=xmin_file) &&
+                     (yy<=ymax_file) && (yy>=ymin_file) &&
+                     (zz<=zmax_file) && (zz>=zmin_file)) {
+				#else
+				 if ((xx<=xmax_fileMid) && (xx>=xmin_fileMid) &&
+                    (yy<=ymax_fileMid) && (yy>=ymin_fileMid) &&
+                    (zz<=zmax_fileMid) && (zz>=zmin_fileMid)) {
+				#endif
 					R[0][0][k]=xx; 
 					R[0][1][k]=yy; 
 					R[0][2][k]=zz; 
@@ -343,9 +281,14 @@ int main( int argc , char **argv )
 					qsl[i].finishedQ=true;
 					qsl[i].length=0;
 					#if CALCULATE==QSL
-					qsl[i].qsl=0;
+						qsl[i].qsl=0;
 					#endif
-					cout << qsl[i].x << "\t" << xx << "\t" << yy << "\t" << zz << "\t" << "0.0";
+					
+					#if CALCULATE!=QSL
+						cout << qsl[i].x  << "\t" << 0 << "\t" << -1 << "\t" << 0<< "\t" << 0<< "\t" << 0<< "\t" << 0 ;
+					#else
+						cout << qsl[i].x  << "\t" << -1000 << "\t" << 0 << "\t" << -1 ;
+					#endif
                     cout  << "\n";
 				}
                 i++;
@@ -361,17 +304,18 @@ int main( int argc , char **argv )
         initialize( R,ctx, B,Borig,ff,qsl,ff_lookup);
         
         
-        integrate_streamlines(R,ctx,B,ff,ff_lookup);
-        #if (CALCULATE==FIELD_LINE_LENGTH)
-			length_calculation(R,ctx,B,Borig,ff,qsl,ff_lookup);
-			cerr<<"Field line lengths calculated successfully." << "\n";
-			return 0;
-        #else
-            q_calculation(R,ctx,B,Borig,ff,qsl,ff_lookup);
-            cerr<<"Q values calculated successfully." << "\n";
-		
-			if (batch_num==MAX_REFINEMENTS) return 0;
-        
+       
+			#if (CALCULATE==QSL)
+			    integrate_streamlines(R,ctx,B,ff,ff_lookup);
+                q_calculation(R,ctx,B,Borig,ff,qsl,ff_lookup);
+                cerr<<"Q values calculated successfully." << "\n";
+            #else
+                integrate_streamlines(R,ctx,B,ff,ff_lookup,Locals,ff_lookupMid,ffMid);
+                length_calculation(R,ctx,B,Borig,ff,qsl,ff_lookup);
+			    cerr<<"Quantities calculated successfully." << "\n";
+            #endif
+            
+            if (batch_num==MAX_REFINEMENTS) return 0;
         
 			BATCHSIZE = 0;
 			
@@ -390,9 +334,10 @@ int main( int argc , char **argv )
 			add_samples_along_hilbert(qsl,&qsl_num);
 			BATCHSIZE += qsl_num - qsl_num_old;
 			
+			if (BATCHSIZE>MAX_BATCHSIZE) return 0;
+			
 			shift = -3911;//shift back
 			shift_grid(qsl,shift, qsl_num);
-         #endif
     }
     
     return 0;
@@ -417,6 +362,7 @@ void q_calculation( std::vector< std::vector< std::vector< double >> > &R, vex::
             vector< double > uvF(n);
             vector< double > bF(n);
             vector< double > bB(n);
+            vector< int > open_fl(n);
             vector< ushort > ind_local(n);
             vector< ushort > ind_k(n);
             
@@ -445,7 +391,7 @@ void q_calculation( std::vector< std::vector< std::vector< double >> > &R, vex::
    		            bo(0) = extract0(d);
                     bo(1) = extract1(d);
                     bo(2) = extract2(d);
-                    bo(0) = pow(bo(0)*bo(0)+bo(1)*bo(1)+bo(2)*bo(2),0.5);
+                    bo(0) = pow(bo(0)*bo(0)+bo(1)*bo(1)+bo(2)*bo(2),0.5)+1.e-30;
                     ind1=extract3u(ind);
                     vex::copy(ind1,ind_local) ;
                     ind1=extract2u(ind);
@@ -454,7 +400,7 @@ void q_calculation( std::vector< std::vector< std::vector< double >> > &R, vex::
                     b(0) = extract0(d);
                     b(1) = extract1(d);
                     b(2) = extract2(d);
-                    norm = pow(b(0)*b(0)+b(1)*b(1)+b(2)*b(2),0.5);
+                    norm = pow(b(0)*b(0)+b(1)*b(1)+b(2)*b(2),0.5)+1.e-30;
                     b(0) /= norm;
                     b(1) /= norm;
                     b(2) /= norm;
@@ -488,9 +434,8 @@ void q_calculation( std::vector< std::vector< std::vector< double >> > &R, vex::
                         vex::copy( bo(0) , bF);
                         for (i=0;i<n;i++) {
 							bF[i] *= pow(1e9,1.0-((double)ind_local[i]));
-							#ifdef MARK_OPEN_FIELD_LINES
-								if (ind_k[i]>k_bottom) bF[i]=0;
-							#endif
+							open_fl[i]=0;
+							if (ind_k[i]>k_bottom) open_fl[i]=1;
 						}
                     }
                     else{
@@ -504,9 +449,7 @@ void q_calculation( std::vector< std::vector< std::vector< double >> > &R, vex::
                         vex::copy( bo(0) , bB);
                         for (i=0;i<n;i++) {
 							bB[i] *= pow(1e9, 1.0-((double)ind_local[i]));
-							#ifdef MARK_OPEN_FIELD_LINES
-								if (ind_k[i]>k_bottom) bB[i]=0;
-							#endif
+							if (ind_k[i]>k_bottom) open_fl[i]=1;
 						}
                     }
                 
@@ -520,13 +463,9 @@ void q_calculation( std::vector< std::vector< std::vector< double >> > &R, vex::
                     while (qsl[k].finishedQ) k++;
                     qsl[k].finishedQ=true;
                     qsl[k].length=length1[i]+length2[i];
-                    qsl[k].qsl *= ( uuF[i]*vvB[i] + uuB[i]*vvF[i] - 2.0*uvB[i]*uvF[i] ) * (bB[i]*bF[i]/pow((double) DISPLACEMENT_WEIGHT,4)) ; //  10^4 is for the factor multiplying the initial displacement
-                    //qsl[k].qsl = ( uuF[i]*vvB[i] + uuB[i]*vvF[i] - 2.0*uvB[i]*uvF[i] ) / pow(( uuB[i]*vvB[i] - uvB[i]*uvB[i] )*( uuF[i]*vvF[i] - uvF[i]*uvF[i] ),0.5) ; 
+                    qsl[k].qsl *= ( uuF[i]*vvB[i] + uuB[i]*vvF[i] - 2.0*uvB[i]*uvF[i] ) * (bB[i]*bF[i]) ;
                     hilbert_to_coo(qsl,&xx,&yy,&zz,k);
-                    //if (batch_num==0)
-                    //    cout << qsl[k].x  << "\t" << xx << "\t" << yy << "\t" << zz << "\t" << "0.0";
-                    //else
-						cout << qsl[k].x  << "\t" << xx << "\t" << yy << "\t" << zz << "\t" << qsl[k].qsl ;
+					cout << qsl[k].x  << "\t" << qsl[k].qsl << "\t" << qsl[k].length << "\t" << open_fl[i] ;
                     cout  << "\n";
 		    
                     i++;
@@ -547,9 +486,13 @@ void length_calculation( std::vector< std::vector< std::vector< double >> > &R, 
             size_t batchsize = R[0][0].size();
             size_t n=CHUNKSIZE;
             vector< ushort > ind_k(n);
-            vector< ushort > ind_open(n);
+            vector< ushort > ind_openF(n),ind_openB(n);
             
             vector< double > length1(n),length2(n);
+            vector< double > lengthA1(n),lengthA2(n);
+            vector< double > lengthB1(n),lengthB2(n);
+            vector< double > lengthC1(n),lengthC2(n);
+            vector< double > lengthD1(n),lengthD2(n);
             
             b_type b( ctx.queue() , n ); 
             b_type bo( ctx.queue() , n ); 
@@ -558,7 +501,7 @@ void length_calculation( std::vector< std::vector< std::vector< double >> > &R, 
             vector2_type d(ctx.queue() , n);
             state_type X(ctx.queue(), n);
             ind_type ind1(ctx.queue(), n);
-            
+            //vector< ushort > ind_local(n);  
             
             size_t offset=0;
             uint64_t i;
@@ -573,22 +516,26 @@ void length_calculation( std::vector< std::vector< std::vector< double >> > &R, 
                     vex::copy(ind1,ind_k) ;
 
                     if (ii==0){
-						vex::copy(  X(NUM_ODE-1) , length1);
+						vex::copy(  X(7) , lengthD1);
+						vex::copy(  X(6) , lengthC1);
+						vex::copy(  X(5) , lengthB1);
+						vex::copy(  X(4) , lengthA1);
+						vex::copy(  X(3) , length1);
                         for (i=0;i<n;i++) {
-							ind_open[i]=1;
-							#ifdef MARK_OPEN_FIELD_LINES
-								if (ind_k[i]>k_bottom) ind_open[i]=0;
-							#endif
+							ind_openF[i]=0;
+								if (ind_k[i]>k_bottom) ind_openF[i]=1;
 						}
                     }
                     else{
-						vex::copy(  X(NUM_ODE-1) , length2);
+						vex::copy(  X(7) , lengthD2);
+						vex::copy(  X(6) , lengthC2);
+						vex::copy(  X(5) , lengthB2);
+						vex::copy(  X(4) , lengthA2);
+						vex::copy(  X(3) , length2);
                         for (i=0;i<n;i++) {
-							#ifdef MARK_OPEN_FIELD_LINES
-								if (ind_k[i]>k_bottom) ind_open[i]=0;
-							#endif
+							ind_openB[i]=0;
+							if (ind_k[i]>k_bottom) ind_openB[i]=1;
 						}
-
                     }
                 
                 }
@@ -600,9 +547,18 @@ void length_calculation( std::vector< std::vector< std::vector< double >> > &R, 
                 while (i<n){
                     while (qsl[k].finishedQ) k++;
                     qsl[k].finishedQ=true;
-                    qsl[k].length=(length1[i]+length2[i])*((double)ind_open[i]);
-                    hilbert_to_coo(qsl,&xx,&yy,&zz,k);
-                    cout << qsl[k].x  << "\t" << xx << "\t" << yy << "\t" << zz << "\t" << qsl[k].length ;
+                      double a,b,c,d;
+					  d=(lengthD1[i]+lengthD2[i]);
+					  c=(lengthC1[i]+lengthC2[i]);
+					  b=(lengthB1[i]+lengthB2[i]);
+					  a=(lengthA1[i]+lengthA2[i]);
+					  qsl[k].length=(length1[i]+length2[i]);
+					  
+					  
+					  //*((double)ind_openB[i]*ind_openF[i]);
+					  hilbert_to_coo(qsl,&xx,&yy,&zz,k);
+					  //<< "\t"<< xx<<"\t"<< yy<<"\t"<< zz
+					  cout << qsl[k].x  << "\t" << qsl[k].length << "\t" << 1-(1-ind_openB[i])*(1-ind_openF[i]) << "\t" << a<< "\t" << b<< "\t" << c<< "\t" << d ; // hilbert, x,y,z,length          
                     cout  << "\n";
 		    
                     i++;
@@ -673,7 +629,7 @@ void initialize( std::vector< std::vector< std::vector< double >> > &R, vex::Con
             b(2) = extract2(d) ; 
             
 
-            norm = pow(b(0)*b(0)+b(1)*b(1)+b(2)*b(2),0.5);
+            norm = pow(b(0)*b(0)+b(1)*b(1)+b(2)*b(2),0.5)+1.e-30;
             b(0) /= norm;
             b(1) /= norm;
             b(2) /= norm;
@@ -682,7 +638,7 @@ void initialize( std::vector< std::vector< std::vector< double >> > &R, vex::Con
             X(0+3*2) = b(1);
             X(1+3*2) = -b(0);
             X(2+3*2) = 0.0;
-            norm =  pow(X(0+3*2)* X(0+3*2)+ X(1+3*2)*X(1+3*2),0.5);
+            norm =  pow(X(0+3*2)* X(0+3*2)+ X(1+3*2)*X(1+3*2),0.5)+1.e-30;
             X(0+3*2) /= norm; // A = y   normalized
             X(1+3*2) /= norm; // B = -x  normalized
             // now 3*2 has all the tildas
@@ -697,8 +653,7 @@ void initialize( std::vector< std::vector< std::vector< double >> > &R, vex::Con
 				X(1+3*2)/=X(2);
             #endif
             X(9)=0;
-#endif
-#if (CALCULATE==FIELD_LINE_LENGTH)
+#else
             {
                 uint64_t k=0,i=0;
                 for (i=0;i<offset;i++){
@@ -713,11 +668,10 @@ void initialize( std::vector< std::vector< std::vector< double >> > &R, vex::Con
                     k++;
                 }
             }
-
-            X(3)=0;
+			for (size_t l = 3; l < NUM_ODE; ++l)
+				X(l)=0;
 #endif
             for (size_t l = 3; l < NUM_ODE; ++l){
-                X(l)*=DISPLACEMENT_WEIGHT;
                 vex::copy(X(l).begin(),X(l).begin()+n, R[0][l].begin() + offset);
                 vex::copy(X(l).begin(),X(l).begin()+n, R[1][l].begin() + offset);
             }
@@ -729,14 +683,19 @@ void initialize( std::vector< std::vector< std::vector< double >> > &R, vex::Con
 
 
 #include <cstdio>
+#if CALCULATE!=QSL
+void reading( vex::Context &ctx, 
+                    vector2_type &B,vector2_type &Borig,vector2_type &ff,ind2_type &ff_lookup,vector2_type &Locals,ind2_type &ff_lookupMid,vector2_type &ffMid){
+#else
 void reading( vex::Context &ctx, 
                     vector2_type &B,vector2_type &Borig,vector2_type &ff,ind2_type &ff_lookup){
+#endif
     using namespace std;
     b_type bbf( ctx.queue() , nmax ); 
     u_type bbfu( ctx.queue() , nmax ); 
     //vector2_type ff(ctx.queue(), nmax);
 	if ((nx>=nmax) || (ny>=nmax) || (nz>=nmax)) {
-		std::cerr<<"***Increase nmax in options.hpp. Currently, nmax="<<nmax <<", while nx,ny,nz="<<nx<<' '<<ny<<' '<<nz<<'\n';
+		std::cerr<<"***Increase nmax in post-defs.hpp. Currently, nmax="<<nmax <<", while nx,ny,nz="<<nx<<' '<<ny<<' '<<nz<<'\n';
 		exit(0);
 	}
     
@@ -757,7 +716,16 @@ void reading( vex::Context &ctx,
     vector< ushort > fx_lookup(nmax);
     vector< ushort > fy_lookup(nmax);
     vector< ushort > fz_lookup(nmax);
+#if CALCULATE!=QSL
+    HxMid.resize(  nmax, 0.0 );
+    HyMid.resize(  nmax, 0.0 );
+    HzMid.resize(  nmax, 0.0 );
     
+    vector< ushort > fx_lookupMid(nmax);
+    vector< ushort > fy_lookupMid(nmax);
+    vector< ushort > fz_lookupMid(nmax);
+#endif
+
     double ox,oy,oz,o;
     int check,i; 
     filefx = fopen((in_dir+"xs0"+in_filename+".dat").c_str(), "r");
@@ -886,20 +854,52 @@ void reading( vex::Context &ctx,
     vex::copy( Hz,bbf(2));
     
     ff = combine(bbf(0),bbf(1),bbf(2));
+#if CALCULATE!=QSL
+    for (size_t k = 0; k < nz-1; ++k)  
+		HzMid[k]=(Hz[k]+Hz[k+1])/2.;
+	for (size_t k = 0; k < ny-1; ++k)  
+		HyMid[k]=(Hy[k]+Hy[k+1])/2.;
+    for (size_t k = 0; k < nx-1; ++k)  
+		HxMid[k]=(Hx[k]+Hx[k+1])/2.;
+	zmax_fileMid=HzMid[nz-2];
+	zmin_fileMid=HzMid[0];
+	ymax_fileMid=HyMid[ny-2];
+	ymin_fileMid=HyMid[0];
+	xmax_fileMid=HxMid[nx-2];
+	xmin_fileMid=HxMid[0];
+	
+	vex::copy( HxMid,bbf(0));
+	vex::copy( HyMid,bbf(1));
+	vex::copy( HzMid,bbf(2));
     
+    ffMid = combine(bbf(0),bbf(1),bbf(2));
+#endif
 ///// CREATE LOOKUP TABLES
     ushort kx=0,ky=0,kz=0;
+    ushort kxM=0,kyM=0,kzM=0;
     for (size_t i = 0; i < nmax; i++){
 		double ix,iy,iz;
 		ix=(xmax_file-xmin_file)*((double)i)/((double)nmax)+xmin_file;
 		iy=(ymax_file-ymin_file)*((double)i)/((double)nmax)+ymin_file;
 		iz=(zmax_file-zmin_file)*((double)i)/((double)nmax)+zmin_file;
-		while ((ix>Hx[kx]) && (kx<nx)) kx++;
+		while ((kx<nx) && (ix>Hx[kx])) kx++;
 		fx_lookup[i]=kx;
-		while ((iy>Hy[ky]) && (ky<ny)) ky++;
+		while ((ky<ny) && (iy>Hy[ky])) ky++;
 		fy_lookup[i]=ky;
-		while ((iz>Hz[kz]) && (kz<nz)) kz++;
+		while ((kz<nz) && (iz>Hz[kz])) kz++;
 		fz_lookup[i]=kz;
+		
+#if CALCULATE!=QSL
+		ix=(xmax_fileMid-xmin_fileMid)*((double)i)/((double)nmax)+xmin_fileMid;
+		iy=(ymax_fileMid-ymin_fileMid)*((double)i)/((double)nmax)+ymin_fileMid;
+		iz=(zmax_fileMid-zmin_fileMid)*((double)i)/((double)nmax)+zmin_fileMid;
+		while ((kxM<nx-1) && (ix>HxMid[kxM])) kxM++;
+		fx_lookupMid[i]=kxM;
+		while ((kyM<ny-1) && (iy>HyMid[kyM])) kyM++;
+		fy_lookupMid[i]=kyM;
+		while ((kzM<nz-1) && (iz>HzMid[kzM])) kzM++;
+		fz_lookupMid[i]=kzM;
+#endif
 	}
     
     vex::copy( fx_lookup,bbfu(0));
@@ -907,6 +907,13 @@ void reading( vex::Context &ctx,
     vex::copy( fz_lookup,bbfu(2));
     
     ff_lookup = combineu(bbfu(0),bbfu(1),bbfu(2));
+#if CALCULATE!=QSL
+    vex::copy( fx_lookupMid,bbfu(0));
+    vex::copy( fy_lookupMid,bbfu(1));
+    vex::copy( fz_lookupMid,bbfu(2));
+    
+    ff_lookupMid = combineu(bbfu(0),bbfu(1),bbfu(2));
+#endif    
     
 ///////
     // B( ctx.queue() , n_box );   
@@ -945,7 +952,7 @@ void reading( vex::Context &ctx,
                 check=fscanf(filey, "%lf", &oy )*check;
                 check=fscanf(filez, "%lf", &oz )*check;
                 if (check==1){
-					o=pow(ox*ox+oy*oy+oz*oz+1e-20,0.5);
+					o=pow(ox*ox+oy*oy+oz*oz,0.5)+1.e-30;
 					datax[i+ nx*(j+ny*k)]=ox   /o; //*10.0;
 					datay[i+ nx*(j+ny*k)]=oy   /o; //*10.0;
 					dataz[i+ nx*(j+ny*k)]=oz   /o; //*10.0;
@@ -967,7 +974,30 @@ void reading( vex::Context &ctx,
     vex::copy( datay,bb(1) );
     vex::copy( dataz,bb(2) );
     
+
+#if CALCULATE>QSL
+    IntegrandA.resize(n_box,0.);
+    IntegrandB.resize(n_box,0.);
+    IntegrandC.resize(n_box,0.);
+    IntegrandD.resize(n_box,0.);
+    {
+    vector_type aaa( ctx.queue() , n_box ); 
+    vector_type bbb( ctx.queue() , n_box ); 
+    vector_type ccc( ctx.queue() , n_box ); 
+    vector_type ddd( ctx.queue() , n_box ); 
+	
+    find_current();
+    find_hft();
+    vex::copy( IntegrandA,aaa );
+    vex::copy( IntegrandB,bbb );
+    vex::copy( IntegrandC,ccc );
+    vex::copy( IntegrandD,ddd );
+    Locals = combine4(aaa,bbb,ccc,ddd);
+	}
+#endif
     B = combine(bb(0),bb(1),bb(2));
+
+
     
     vex::copy( Bx,bb(0) );
     vex::copy( By,bb(1) );
@@ -975,19 +1005,20 @@ void reading( vex::Context &ctx,
     Borig = combine(bb(0),bb(1),bb(2));
 
 
-
     
 }
 
 
-
-void integrate_streamlines(std::vector< std::vector< std::vector< double >> > &R,vex::Context &ctx,vector2_type &B,vector2_type &ff,ind2_type &ff_lookup){
+#if CALCULATE!=QSL
+void integrate_streamlines(std::vector< std::vector< std::vector< double >> > &R,vex::Context &ctx,
+			vector2_type &B,vector2_type &ff,ind2_type &ff_lookup,vector2_type &Locals,ind2_type &ff_lookupMid
+			,vector2_type &ffMid){
+#else
+void integrate_streamlines(std::vector< std::vector< std::vector< double >> > &R,vex::Context &ctx,
+			vector2_type &B,vector2_type &ff,ind2_type &ff_lookup){
+#endif
     using namespace std;
     
-    #if INTEGRATION_SCHEME==ADAPTIVE
-		using namespace odeint;
-		typedef runge_kutta_cash_karp54< state_type > error_stepper_type;
-	#endif
     size_t counter,start;
     
     vector< vector< double >> tmp;
@@ -1017,9 +1048,7 @@ void integrate_streamlines(std::vector< std::vector< std::vector< double >> > &R
                 if (BATCHSIZE < (CHUNKSIZE+ counter))
                     n =  BATCHSIZE -counter; // should not try to send more vectors to GPU than the available number in batchsize
                 state_type X(ctx.queue(), n); // recreate X every time -- long story ...
-		#if INTEGRATION_SCHEME==EULER
-	                state_type dxdt(ctx.queue(), n);
-		#endif
+                state_type dxdt(ctx.queue(), n);
                 vex::vector< int > cQ(ctx.queue(), n);
                 vector< int >convergedQ(n);
                 
@@ -1047,34 +1076,10 @@ void integrate_streamlines(std::vector< std::vector< std::vector< double >> > &R
                             tmp[l][i]=R[ii][l][Rind[i]];
                         vex::copy(tmp[l].begin() ,tmp[l].begin()+n,X(l).begin());
                 }
-		#if INTEGRATION_SCHEME==ADAPTIVE
-			#if GEOMETRY==SPHERICAL
-                    //fix periodicities
-					vex::tie(X(0),X(1))=std::make_tuple(
-							fmod(X(0)-xmin_file+(floor(fabs(X(1))*M_2_PI)+2.)*M_PI,2.*M_PI)+xmin_file,
-							M_PI_2-fabs(fabs(X(1)+M_PI_2)-M_PI)
-							);
-					VEX_CONSTANT(ccc,  (double)SOLAR_RADIUS);
-		            X(0)*=ccc();
-		            X(1)*=ccc(); 
- 			#else
- 				    #ifdef PERIODIC_XY
-						vex::tie(X(0),X(1))=std::make_tuple(
-							fmod(X(0)-xmin_file+(xmax_file-xmin_file),xmax_file-xmin_file)+xmin_file,
-							fmod(X(1)-ymin_file+(ymax_file-ymin_file),ymax_file-ymin_file)+ymin_file
-						);
-					#endif
-			#endif
-                	integrate_adaptive( make_controlled< error_stepper_type >(eps_abs, eps_rel)  , sys_func( B ,ff, ff_lookup) , X ,0.,INTEGRATION_RANGE , step );
-			#if GEOMETRY==SPHERICAL
-		            X(0)/=ccc();
-		            X(1)/=ccc();
-			#endif
-		#endif
-		#if INTEGRATION_SCHEME==EULER
+		
 	            /////////////////////////////////
 				/////////////////////////////////
-				/////////////////////////////////
+				//////Euler integration//////////
 				/////////////////////////////////
 				/////////////////////////////////
 				/////////////////////////////////
@@ -1089,16 +1094,13 @@ void integrate_streamlines(std::vector< std::vector< std::vector< double >> > &R
 					for (size_t y=0; y<steps;y++){
 						#if (GEOMETRY==SPHERICAL)
 							//fix periodicities
-							  vex::tie(X(0),X(1))=std::make_tuple(
-									fmod(X(0)-xmin_file+(floor(fabs(X(1))*M_2_PI)+2.)*M_PI,2.*M_PI)+xmin_file,
-									M_PI_2-fabs(fabs(X(1)+M_PI_2)-M_PI)
-									);
+							X(0)=fmod(X(0)-xmin_file+(floor(fabs(X(1))*M_2_PI)+2.)*M_PI,2.*M_PI)+xmin_file;
+							X(1)=M_PI_2-fabs(fabs(X(1)+M_PI_2)-M_PI);
 						#else
 							    #ifdef PERIODIC_XY
-								vex::tie(X(0),X(1))=std::make_tuple(
-									fmod(X(0)-xmin_file+(xmax_file-xmin_file),xmax_file-xmin_file)+xmin_file,
-									fmod(X(1)-ymin_file+(ymax_file-ymin_file),ymax_file-ymin_file)+ymin_file
-								);
+								X(0)=fmod(X(0)-xmin_file+(xmax_file-xmin_file),xmax_file-xmin_file)+xmin_file;
+								X(1)=fmod(X(1)-ymin_file+(ymax_file-ymin_file),ymax_file-ymin_file)+ymin_file;
+								
 								#endif
 						#endif
 						
@@ -1114,33 +1116,47 @@ void integrate_streamlines(std::vector< std::vector< std::vector< double >> > &R
                             dxdt(1) = extract1(d);
                         #endif
 						dxdt(2) = extract2(d);  
-
-						dxdt(NUM_ODE-1) = extract3(d);  
+						  
+#if (CALCULATE>QSL)	
+						dxdt(3) = extract3(d);
+						dxdt(0)*=dxdt(3);
+						dxdt(1)*=dxdt(3);
+						dxdt(2)*=dxdt(3);
+						ind = find_indexMid(X(0),X(1),X(2),vex::raw_pointer(ffMid),vex::raw_pointer(ff_lookupMid));
+                        d =  INTERPMID( X(0),X(1),X(2), vex::raw_pointer(Locals), vex::raw_pointer(ffMid),ind);
+						dxdt(4) = extract0(d)*dxdt(3);  
+						dxdt(5) = extract1(d)*dxdt(3);  
+						dxdt(6) = extract2(d)*dxdt(3);  
+						dxdt(7) = extract3(d)*dxdt(3); 
+#endif		  
 #if (CALCULATE==QSL)	
+						dxdt(9) = extract3(d);  
+						dxdt(0)*=dxdt(9);
+						dxdt(1)*=dxdt(9);
+						dxdt(2)*=dxdt(9);
 						d = INTERP_DIFF(X(0),X(1),X(2),X(0+3*1),X(1+3*1),X(2+3*1), vex::raw_pointer(B), vex::raw_pointer(ff),ind);	
 						#if (GEOMETRY==SPHERICAL)
-                            dxdt(0+3*1) = extract0(d)/(X(2)*cos(X(1)));  
-                            dxdt(1+3*1) = extract1(d)/X(2); 
+                            dxdt(0+3*1) = extract0(d)*dxdt(9)/(X(2)*cos(X(1)));  
+                            dxdt(1+3*1) = extract1(d)*dxdt(9)/X(2); 
                             dxdt(1+3*1) -= X(2+3*1)/X(2)*dxdt(1); 
                             dxdt(0+3*1) -= (X(2+3*1)/X(2)-X(1+3*1)*tan(X(1)))*dxdt(0);
                         #else
-                            dxdt(0+3*1) = extract0(d);
-                            dxdt(1+3*1) = extract1(d);
+                            dxdt(0+3*1) = extract0(d)*dxdt(9);
+                            dxdt(1+3*1) = extract1(d)*dxdt(9);
                         #endif
-						dxdt(2+3*1) = extract2(d); 
+						dxdt(2+3*1) = extract2(d)*dxdt(9); 
                         
                         d = INTERP_DIFF(X(0),X(1),X(2),X(0+3*2),X(1+3*2),X(2+3*2), vex::raw_pointer(B), vex::raw_pointer(ff),ind);
 						#if (GEOMETRY==SPHERICAL)
-                            dxdt(0+3*2) = extract0(d)/(X(2)*cos(X(1)));  
-                            dxdt(1+3*2) = extract1(d)/X(2); 
+                            dxdt(0+3*2) = extract0(d)*dxdt(9)/(X(2)*cos(X(1)));  
+                            dxdt(1+3*2) = extract1(d)*dxdt(9)/X(2); 
                             dxdt(1+3*2) -= X(2+3*2)/X(2)*dxdt(1);
                             dxdt(0+3*2) -= (X(2+3*2)/X(2)-X(1+3*2)*tan(X(1)))*dxdt(0);
                         #else
-                            dxdt(0+3*2) = extract0(d);
-                            dxdt(1+3*2) = extract1(d);
+                            dxdt(0+3*2) = extract0(d)*dxdt(9);
+                            dxdt(1+3*2) = extract1(d)*dxdt(9);
                         #endif
-						dxdt(2+3*2) = extract2(d);
-						
+						dxdt(2+3*2) = extract2(d)*dxdt(9);
 #endif
 						for (uint l=0;l<NUM_ODE;l++)
 							X(l)+=dxdt(l)*dt();
@@ -1155,19 +1171,16 @@ void integrate_streamlines(std::vector< std::vector< std::vector< double >> > &R
 				//////////////////////////////////////////
 				///////////////////////////////////////////
 				/////////////////////////////////
-		#endif
+
 				#if (GEOMETRY==SPHERICAL)
 					//fix periodicities
-					vex::tie(X(0),X(1))=std::make_tuple(
-									fmod(X(0)-xmin_file+(floor(fabs(X(1))*M_2_PI)+2.)*M_PI,2.*M_PI)+xmin_file,
-									M_PI_2-fabs(fabs(X(1)+M_PI_2)-M_PI)
-									);
+					X(0)=fmod(X(0)-xmin_file+(floor(fabs(X(1))*M_2_PI)+2.)*M_PI,2.*M_PI)+xmin_file;
+					X(1)=M_PI_2-fabs(fabs(X(1)+M_PI_2)-M_PI);
+					
 				#else
 					    #ifdef PERIODIC_XY
-							vex::tie(X(0),X(1))=std::make_tuple(
-								fmod(X(0)-xmin_file+(xmax_file-xmin_file),xmax_file-xmin_file)+xmin_file,
-								fmod(X(1)-ymin_file+(ymax_file-ymin_file),ymax_file-ymin_file)+ymin_file
-							);
+								X(0)=fmod(X(0)-xmin_file+(xmax_file-xmin_file),xmax_file-xmin_file)+xmin_file;
+								X(1)=fmod(X(1)-ymin_file+(ymax_file-ymin_file),ymax_file-ymin_file)+ymin_file;
 						#endif
 				#endif
 		
@@ -1210,7 +1223,7 @@ void integrate_streamlines(std::vector< std::vector< std::vector< double >> > &R
                                 }
                             #ifndef LOCAL_Q 
                                 }
-                                else{// move all non-terminated fiel lines to index i=start
+                                else{// move all non-terminated field lines to index i=start
                                     tmp[l][start]=tmp[l][i];
                                     if(l==(NUM_ODE-1)){
                                         Rind[start]=Rind[i];
@@ -1230,14 +1243,13 @@ void integrate_streamlines(std::vector< std::vector< std::vector< double >> > &R
 
             }
         }
-        B*=-1.0;
+        B*=-1.0;//restore sign of B
 }
 
 
 
 
 //////////////////////////////////
-#if CALCULATE==QSL
 void add_samples_along_hilbert(qsl_type &qsl,size_t *qsl_num_pt){
         
         uint64_t x,x1,k1,d1,k,dx; //,m0,m1;
@@ -1260,7 +1272,7 @@ void add_samples_along_hilbert(qsl_type &qsl,size_t *qsl_num_pt){
 				qP=qsl[k1].length;
 				refine =1;
 				#if CALCULATE==QSL
-					refine = (qsl[k].qsl>2.) && (qsl[k1].qsl>2.);//if labelling open field lines, those are marked with q=0, so skip refining at the boundaries of those regions
+					refine = (qsl[k].qsl>2.) && (qsl[k1].qsl>2.);//NO LONGER VALID as q is not overriden by FL openness, but check is useful for sane numbers.
                 #endif
                 refine = refine && (fabs(qC-qP) > LENGTH_JUMP_REFINEMENT_THRESHOLD);
                 refine = refine && (qC>0) && (qP>0);
@@ -1292,7 +1304,6 @@ void add_samples_along_hilbert(qsl_type &qsl,size_t *qsl_num_pt){
 
         qsl_num_pt[0] = qsl_num;
     }
-#endif
 
 /////////////////
 

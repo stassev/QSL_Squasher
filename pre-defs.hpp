@@ -1,6 +1,6 @@
 /*
 	This file is part of QSL Squasher. 
-	Copyright (C) 2014-2018  Svetlin Tassev
+	Copyright (C) 2014-2019  Svetlin Tassev
 							 Harvard-Smithsonian Center for Astrophysics
 							 Braintree High School
 	
@@ -21,15 +21,13 @@
 
 //**********************************************************************
 //pre-define these so that preprocessor works with those keywords
-#define TRILINEAR     0  //Don't touch!
-#define TRIQUADRATIC  1  //Don't touch!
-#define TRICUBIC      2  //Don't touch!
 
 #define CARTESIAN 0 //Don't touch!
 #define SPHERICAL 1 //Don't touch!
 
-#define EULER 0    //Don't touch!
-#define ADAPTIVE 1 //Don't touch!
+#define QSL 1
+#define TRANSVERSE_EIGENVALUES 2
 
-#define FIELD_LINE_LENGTH 0
-#define QSL 2 
+#define SYMM_LAMBDA 0
+#define OPT2_LAMBDA 1
+#define OPT1_LAMBDA 2

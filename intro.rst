@@ -1,7 +1,7 @@
 .. ########################################################################
 .. ########################################################################
 .. #   This file is part of QSL Squasher. 
-.. #   Copyright (C) 2014-2017  Svetlin Tassev
+.. #   Copyright (C) 2014-2019  Svetlin Tassev
 .. #   						 Harvard-Smithsonian Center for Astrophysics
 .. #   						 Braintree High School
 .. #   
@@ -28,13 +28,19 @@ Overview
 
 
 QSL Squasher is an `OpenCL <https://www.khronos.org/opencl/>`_ code for 
-calculating the squashing factor, Q, of a vector field specified within 
+calculating the squashing (Q) and squeezing (Z) factors as well as twist and 
+coiling numbers of a vector field specified within 
 a finite volume. Its description below focuses on its application to 
 solar magnetic fields, but the code itself is completely general.
 
-QSL Squasher is based on the following paper: [QSL3d]_. We kindly ask 
-you [#f1]_ to acknowledge it and its authors in any program or 
-publication in which you use QSL Squasher or a derivative of it.
+Note that this is the manual for the QSL Squasher -- Transverse Version 
+(corresponding to QSL Squasher version >=2.0). This version of the code is not optimized for
+fast calculation of Q. For efficient calculation of Q, use the original version of QSL Squasher (version <2.0).
+
+QSL Squasher is based on the following papers: [QSL3d]_ and  [Coiling]_. We kindly ask 
+you [#f1]_ to acknowledge both papers and its authors in any program or 
+publication in which you use QSL Squasher (or  QSL Squasher -- Transverse Version) 
+or a derivative of it.
 
 
 .. rubric:: Footnotes
@@ -100,25 +106,16 @@ As an example, for the AMD GPU on our dedicated server,
 :download:`qslSquasher.cpp` is compiled with:
 
 .. code-block:: bash
- 
-   $ clang -I/opt/AMDAPP/SDK/include qslSquasher.cpp -std=c++11 \
-   > -lstdc++ -lm -I/usr/local/include/vexcl -lOpenCL \
-   > -lboost_system -O3 -march=native -mcpu=native -o qslSquasher
+
+   $ clang -I/opt/intel/opencl-sdk/include qslSquasher.cpp -std=c++11 \
+   > -lstdc++ -lm -I/usr/local/include/vexcl -lOpenCL -lboost_system \
+   > -O3 -march=native -mcpu=native  -o qslSquasher
 
 If you want to test the code on your CPU, you would need the `POCL 
 <http://www.portablecl.org>`_ OpenCL implementation to be installed on 
 your computer. Then you need to define :c:macro:`OpenCL_DEVICE_TYPE 
 <OpenCL_DEVICE_TYPE>` as ``CL_DEVICE_TYPE_CPU`` in 
-:download:`options.hpp`. You can then compile the code with the 
-following command (note that some paths may need to be adjusted to your 
-configuration): 
-
-.. code-block:: bash
- 
-   $ clang -I/opt/intel/opencl-sdk/include qslSquasher.cpp \
-   > -std=c++11 -lstdc++ -lm -I/usr/local/include/vexcl \
-   > -lOpenCL -lboost_system -O3 -march=native -mcpu=native \
-   > -o qslSquasher
+:download:`options.hpp`. 
 
 
 .. warning::
@@ -235,20 +232,7 @@ In the code, the slice/cube for which the Q values are calculated is
 indexed with a `Hilbert curve 
 <https://en.wikipedia.org/wiki/Hilbert_curve>`_ that fills the region 
 of interest. The output from the :download:`qslSquasher.cpp` code 
-is printed to stdout in five columns: 
-	
-* The first column corresponds to the Hilbert key of the point for 
-  which the Q value is calculated. This key is used by the next 
-  post-processing step described below.
-	
-* The second, third and fourth columns give the coordinates of the 
-  grid point for which the Q value is calculated. For cartesian 
-  coordinates, those correspond to the :math:`\hat x, \hat y, \hat z` 
-  coordinates in Mm; while for spherical coordinates, those are the 
-  :math:`\hat \phi, \hat \theta, \hat r` coordinates in units of 
-  deprees, degrees and solar radii, respectively.
-
-* The fifth columns returns the Q value for that grid point. 
+is printed to stdout. 
 	
 The output after the initial calculation on a grid and after each mesh 
 refinement is sorted according to Hilbert key values. For multiple 
@@ -266,53 +250,70 @@ First post-processing step with :file:`snapshot.cpp`
 
 This code assumes that the output from ``qslSquasher`` is saved in the 
 current directory as :file:`raw.dat`. Then, ``snapshot`` parses that 
-file and returns to ``stdout`` a list of :math:`log_{10}(Q)` values on 
-a rectilinear grid spanning the 2d/3d region of interest for which the 
-Q values were calculated in ``qslSquasher``. The grid is of size 
-``nx_out``, ``ny_out`` (and ``nz_out`` when working with a 3d cube), 
-which are specified at the top of :download:`snapshot.cpp`  at compile 
-time. 
+file and returns to ``stdout`` a list of values for the quantities of interest
+on a rectilinear grid spanning the 2d/3d region of interest, which was specified for
+``qslSquasher``. The grid is of size ``nx_out``, ``ny_out`` 
+(and ``nz_out`` when working with a 3d cube), which are specified at 
+the top of :download:`snapshot.cpp`  at compile time. 
 
-The output is a column of :math:`log_{10}(Q)` values printed by 
-the following nested for-loops::
+The output is a column of values printed by the following nested for-loops::
 
 	 for (size_t i = 0; i < nx_out; ++i)
 		for (size_t j= 0; j < ny_out; ++j) 
 			for (size_t k = 0; k < nz_out; ++k) # for 3d cube
 
-If several Q values are found within a cell of the grid (as defined by 
-the neighborhood of the point along the Hilbert curve), then the code 
-takes the maximum of those. Otherwise, the values are interpolated 
-along the Hilbert curve filling the cube/slice.
+The output is parsed with the Python script described in the next 
+section. See that section for a description of the output.
 
-The definition of Q is such that :math:`log_{10}(Q)\geq log_{10}(2)`. 
-Junk values are returned as `-1000`. We recommend that you parse the 
-output of ``snapshot`` with the Python scripts described in the next 
-section.
-
-Note that if ``CALCULATE`` is set to ``FIELD_LINE_LENGTH`` instead of 
-``QSL``, then the output from this post-processing step contains the 
-values of the length of the fields line passing through each sampled 
-point, and not the values of :math:`log_{10}(Q)`.
 
 .. _script-section:
 
 Second post-processing step with Python
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The scripts :file:`viz2d.py` and :file:`viz3d.py` show examples of 
-post-processing the 2d/3d output from ``snapshot``. The 2d 
-post-processing script, :file:`viz2d.py`, outputs a png image file 
-containing the slice produced by qslSquasher. 
+The script :file:`viz3d.py` shows examples of 
+post-processing the 3d output from ``snapshot``. 
 
-The 3d post-processing script, :file:`viz2d.py`, outputs two VTK files 
-containing the :math:`log_{10}(Q)` and magnetic field values in the 3d 
+The 3d post-processing script, :file:`viz3d.py`, outputs two VTK files 
+containing the global and local quantities in the 3d 
 cube sampled by qslSquasher. Those VTK files can then be visualized by 
 ParaView as in the :ref:`example <example-section>` included with this 
 documentation.
 
-Note that if ``CALCULATE`` is set to ``FIELD_LINE_LENGTH`` instead of 
-``QSL``, then the output from this post-processing step contains the 
-gradient magnitude from the `Sobel operator 
-<https://en.wikipedia.org/wiki/Sobel_operator>`_ applied to the 
-field-line length map.
+The quantities saved in the VTK files by the Python script are as follows:
+
+"Type": 0 for transverse saddle flow; 1 for node; 2 for LH spiral; 3 for RH spiral; 
+4 for LH center; 5 for RH center; 6 for improper node (one repeated eigenvector);
+7 for star node (two distinct eigenvectors). 
+
+"rho_Z" = :math:`\rho_{\mathcal{Z}}`, the squeezing rate (units of 1/Mm)
+
+"omega_c" = :math:`\omega_c`, the coiling rate (units of 1/Mm)
+
+"Trace" = sum of transverse eigenvalues of the gradient of the normalized magnetic field.
+
+"J" = current (defined as :math:`\nabla \times \vec{B}`; has units of [B]/Mm.)   
+
+"Alpha" = generalized force-free parameter (units of 1/Mm)
+
+"Alpha_im" = generalized force-free parameter, which is set to zero in regions with real tranverse eigenvalues (units of 1/Mm)
+
+"FLL" = field-line length (in Mm)
+
+"open" = 1 for open field lines; 0 for closed field lines; otherwise, for missing data
+
+"N_c" = coiling number
+
+"log10(Z)" = logarithm of the squeeze factor
+
+"log10(Q)" = logarithm of the squashing factor
+
+"N_t" = standard twist number
+
+"N_t_im" = twist number after dropping saddle-flow contributions (see 
+Section 5.3 of [Coiling]_)
+
+"FLEDGE" = FLEDGE map
+
+"open_dilat" = the "open" array with removed boundary pixels (between open and closed field-line regions); useful for 
+filtering only closed field lines of the FLEDGE map, without including the large-FLEDGE boundary pixels.

@@ -1,6 +1,6 @@
 /*
 	This file is part of QSL Squasher. 
-	Copyright (C) 2014-2018  Svetlin Tassev
+	Copyright (C) 2014-2019  Svetlin Tassev
 							 Harvard-Smithsonian Center for Astrophysics
 							 Braintree High School
 	
@@ -24,8 +24,8 @@
 //#define OpenCL_DEVICE_TYPE CL_DEVICE_TYPE_GPU
 #define OpenCL_DEVICE_TYPE CL_DEVICE_TYPE_CPU
 
-
 #define SOLAR_RADIUS 696.0
+#define BOX_SIZE 30.
 
 //**********************************************************************
 //**********************************************************************
@@ -35,7 +35,7 @@
 //**********************************************************************
 
 
- 
+
 std::string in_dir  ="./cartesian_demo/";
 std::string in_filename="";
  
@@ -54,8 +54,6 @@ std::string in_filename="";
     //#define PERIODIC_XY
 #endif
 
-
-
 #if GEOMETRY==CARTESIAN
 	#define SLICE_TYPE CARTESIAN // Don't change!
 #else
@@ -63,32 +61,26 @@ std::string in_filename="";
 	#define SLICE_TYPE SPHERICAL
 #endif
 
-
 //**********************************************************************
 
 #define NGPU 0
 
-#define INTEGRATION_SCHEME EULER 
-//#define INTEGRATION_SCHEME ADAPTIVE
-#if INTEGRATION_SCHEME==ADAPTIVE
-	#define eps_rel 1.0e-2
-	#define eps_abs 1.0e-2
-#endif 
 //**********************************************************************
 
-#define MAX_HALF_LENGTH_FIELD_LINE (SOLAR_RADIUS*10.) //Mm 
+#define MAX_HALF_LENGTH_FIELD_LINE (BOX_SIZE*50.) //Mm 
 
-// #define LOCAL_Q
-// #define INTEGRATION_RANGE 10.
+//#define LOCAL_Q
+#define INTEGRATION_RANGE (BOX_SIZE/70.)
 #define INTEGRATION_STEPS_PER_CELL 5.
 
-#ifndef LOCAL_Q
-	#define MARK_OPEN_FIELD_LINES 
+//#define CALCULATE QSL
+#define CALCULATE TRANSVERSE_EIGENVALUES
+
+#if CALCULATE==TRANSVERSE_EIGENVALUES
+	#define RHO_Z OPT1_LAMBDA
+	//#define RHO_Z SYMM_LAMBDA
+	//#define RHO_Z OPT2_LAMBDA
 #endif
-
-//#define CALCULATE FIELD_LINE_LENGTH
-#define CALCULATE QSL
-
 //**********************************************************************
 //**********************************************************************
 //**********************************************************************
@@ -125,7 +117,7 @@ std::string in_filename="";
 #endif
 #if QSL_DIM==3
     #if GEOMETRY==CARTESIAN
-		#define XMIN -9.9      //Mm
+        #define XMIN -9.9      //Mm
         #define XMAX  9.9      //Mm
         #define YMIN -14.9     //Mm
         #define YMAX  14.9     //Mm
@@ -145,40 +137,16 @@ std::string in_filename="";
 	#endif
 #endif
 
-
-
-// Pick one(!) interpolation algorithm used for interpolating 
-// the B-field values:
-#define INTERPOLATION_TYPE TRILINEAR
-//#define INTERPOLATION_TYPE TRIQUADRATIC
-//#define INTERPOLATION_TYPE TRICUBIC
-
-#ifdef GLOBAL_MODEL // global model is supported only with trilinear interpolation at this time
-	#undef INTERPOLATION_TYPE
-	#define INTERPOLATION_TYPE TRILINEAR
-#endif
 //**********************************************************************
 
-//If jump is in the log10(length), then a good guess here is 0.05
-#define LENGTH_JUMP_REFINEMENT_THRESHOLD 1.0 //Mm
+//A good guess is half a pixel size. Pick NX size as a reference in calculating the pixel size.
+#define LENGTH_JUMP_REFINEMENT_THRESHOLD (BOX_SIZE/((double)NX)/2.) //Mm
 
-#define MAX_REFINEMENTS 6
+#define MAX_REFINEMENTS 25
+#define MAX_BATCHSIZE 3e8
 
-#if INTEGRATION_SCHEME==EULER
-	const size_t CHUNKSIZE = pow(2,19);
-#else
-    const size_t CHUNKSIZE = pow(2,16);
-#endif
+const size_t CHUNKSIZE = pow(2,19);
 //**********************************************************************
-#define  MAX_RES_BITS 20 // Used for generating the Hilbert keys. 
-// The largest resolution cube that 
-// can be indexed with Hilbert keys has 2^(MAX_RES_BITS*3) elements in 3d.
-//**********************************************************************
-#define nmax (1024*16) //A dummy set to a value larger than any of NX,NY,NZ.
-//**********************************************************************
-
-#define DISPLACEMENT_WEIGHT 10. // This factor gives more weight to derivatives when calculating errors for adaptive stepper
-
 
 
 #include "post-defs.hpp"

@@ -1,7 +1,7 @@
 .. ########################################################################
 .. ########################################################################
 .. #   This file is part of QSL Squasher. 
-.. #   Copyright (C) 2014-2017  Svetlin Tassev
+.. #   Copyright (C) 2014-2019  Svetlin Tassev
 .. #   						 Harvard-Smithsonian Center for Astrophysics
 .. #   						 Braintree High School
 .. #   
@@ -22,18 +22,18 @@
 .. ########################################################################
 
 
-Welcome to QSL Squasher's documentation!
+Welcome to QSL Squasher -- Transverse Version's documentation!
 ========================================
 
 
 :Author: Svetlin Tassev
 :Version: |release|
-:Date: June 26, 2017
-:Homepage: `QSL Squasher Homepage`_
-:Documentation: `PDF Documentation <https://bitbucket.org/tassev/qsl_squasher/downloads/qsl_Squasher.pdf>`_
+:Date: Jan 1, 2019
+:Homepage: `QSL Squasher -- Transverse Version Homepage`_
+:Documentation: `PDF Documentation <https://bitbucket.org/tassev/qsl_squasher/downloads/QSLSquasherTrans.pdf>`_
 :License: `GPLv3+ License`_
 
-.. _QSL Squasher Homepage: https://bitbucket.org/tassev/qsl_squasher
+.. _QSL Squasher -- Transverse Version Homepage: https://bitbucket.org/tassev/qsl_squasher
 .. _GPLv3+ License: https://www.gnu.org/licenses/gpl-3.0.html
 
 
@@ -47,4 +47,9 @@ Welcome to QSL Squasher's documentation!
    S. Tassev and A. Savcheva (2016), `arXiv:1609.00724
    <https://arxiv.org/abs/1609.00724>`_
 
+
+.. [Coiling] ` Coiling and Squeezing: Properties of the Local Transverse Deviations
+   of Magnetic Field Lines`, 
+   S. Tassev and A. Savcheva (2019), `arXiv:???
+   <https://arxiv.org/abs/???>`_
 
