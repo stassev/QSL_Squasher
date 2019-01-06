@@ -29,9 +29,8 @@ kindly ask you to reference the papers above.
 ver. 2.0 (Jan 1, 2019): QSL Squasher -- Transverse Version. Major overhaul of the code focusing on calculating local and global quantities associated with the transverse eigenvalues of the gradient of the normalized magnetic field. Those include: the squeeze factor as well as the coiling and twist numbers.
 
 ver. 1.3 (Jan 22, 2018): 
-	* Add support for periodic BC in X and Y for Cartesian coordinates. To enable, set PERIODIC_XY in options.hpp. 
-	
-	* Overhaul of snapshot.cpp. Gaps are interpolated with python instead. This update improves memory consumption and fixes certain artefacts due to the old Hilbert-curve based interpolation of the data. Thanks to Roger Scott (University of Dundee) for reporting those artefacts.
+	(1) Add support for periodic BC in X and Y for Cartesian coordinates. To enable, set PERIODIC_XY in options.hpp. 
+	(2) Overhaul of snapshot.cpp. Gaps are interpolated with python instead. This update improves memory consumption and fixes certain artefacts due to the old Hilbert-curve based interpolation of the data. Thanks to Roger Scott (University of Dundee) for reporting those artefacts.
 
 ver. 1.2 (Jan 5, 2018): Added terms neglected in eq.6 of paper. Terms have no effect on identification of QSL locations. Only Q values in spherical coordinates are affected. The extra contributions are suppressed by the ratio (\delta r/R), where \delta r is the scale over which B varies and R is the radius of the Sun. 
 
