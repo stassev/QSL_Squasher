@@ -13,7 +13,7 @@ QSL Squasher (<2.0) is based on the following paper:
 
 QSL Squasher -- Transverse Version (version >=2.0) is based on the paper above as well as on:
 
-* Coiling and Squeezing: Properties of the Local Transverse Deviations of Magnetic Field Lines, S. Tassev and A. Savcheva (2019), [arXiv:???](https://arxiv.org/abs/???).
+* Coiling and Squeezing: Properties of the Local Transverse Deviations of Magnetic Field Lines, S. Tassev and A. Savcheva (2019), [arXiv:1901.00865](https://arxiv.org/abs/1901.00865).
 
 If you use any version of QSL Squasher or a derivative of it for scientific work, we 
 kindly ask you to reference the papers above.
