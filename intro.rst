@@ -34,8 +34,10 @@ a finite volume. Its description below focuses on its application to
 solar magnetic fields, but the code itself is completely general.
 
 Note that this is the manual for the QSL Squasher -- Transverse Version 
-(corresponding to QSL Squasher version >=2.0). This version of the code is not optimized for
-fast calculation of Q. For efficient calculation of Q, use the original version of QSL Squasher (version <2.0).
+(corresponding to QSL Squasher version >=2.0). This version of the code is 
+restricted to Euler integration scheme and trilinear interpolation in 
+calculating Q. For higher-order integration and interpolation schemes in the
+calculation of Q, use the original version of QSL Squasher (version <2.0).
 
 QSL Squasher is based on the following papers: [QSL3d]_ and  [Coiling]_. We kindly ask 
 you [#f1]_ to acknowledge both papers and its authors in any program or 
