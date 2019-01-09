@@ -5,7 +5,7 @@
 QSL Squasher is an OpenCL code for calculating squashing factors of vector fields.
 Version >=2.0 (aka QSL Squasher -- Transverse Version) can also calculate local and global quantities associated with the transverse eigenvalues of the gradient of the normalized magnetic field. Those include the squeeze factor and squeezing rate; the coiling number and coiling rate; the twist factor and twist factor constrained to non-saddle-flow regions; etc.
 
-For efficient calculation of the squashing factor, use the original version of QSL Squasher (version <2.0). Please, use QSL Squasher -- Transverse Version (version >=2.0) for all calculations involving the squashing factor (when speed is not of essence) as well as the quantities associated with the transverse eigenvalues of the gradient of the normalized magnetic field.
+For more fine-grained control over the calculation of the squashing factor, use the original version of QSL Squasher (version <2.0), which offers higher-order interpolation schemes as well as integrator types. Please, use QSL Squasher -- Transverse Version (version >=2.0) for all calculations involving the squashing factor (when defaulting to trilinear interpolation and Euler integration scheme) as well as the quantities associated with the transverse eigenvalues of the gradient of the normalized magnetic field.
 
 QSL Squasher (<2.0) is based on the following paper:
 
