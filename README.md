@@ -22,7 +22,7 @@ kindly ask you to reference the papers above.
 
 * To build the code and learn how to run it, read the manual [here](https://bitbucket.org/tassev/qsl_squasher/downloads/QSLSquasher.pdf) and [here](https://bitbucket.org/tassev/qsl_squasher/downloads/QSLSquasherTrans.pdf). Scripts that compile the code and its dependencies under CentOS and Debian are available from the author upon request.
 
-* The example input files can be downloaded [here](https://bitbucket.org/tassev/qsl_squasher/downloads/cartesian_demo.tar.gz).
+* The example input files can be downloaded [here](https://bitbucket.org/tassev/qsl_squasher/downloads/cartesian_demo.tar.xz).
 
 **Revision History:**
 
